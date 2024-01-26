@@ -1,0 +1,16 @@
+{
+    "Logger": {
+        "Level": "INFO"
+    },
+    "Server": {
+        "HostName": "localhost",
+        "Port": "8080"
+    },
+    "PSQL": {
+        "DNS": "localhost",
+        "Port": "5432",
+        "User": "usr",
+        "Pass": "calendar",
+        "DB": "calendar"
+    }
+}

@@ -1,0 +1,19 @@
+{
+    "Logger": {
+        "Level": "INFO"
+    },
+    "PSQL": {
+        "DNS": "localhost",
+        "Port": "5432",
+        "User": "usr",
+        "Pass": "calendar",
+        "DB": "calendar"
+    },
+    "Migration": {
+        "Dir": "../../migrations"
+    },
+    "Server": {
+        "HostName": "localhost",
+        "Port": "8080"
+    }
+}
