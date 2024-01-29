@@ -24,9 +24,9 @@ type Application interface { // TODO
 func NewServer(logger app.Logger, a app.App) *Server {
 	mux := http.NewServeMux()
 
-	h := NewService(a)
+	h := NewHandler(a)
 
-	mux.HandleFunc("/hello", loggingMiddleware(h.GetHello))
+	mux.HandleFunc("/hello", loggingMiddleware(h.GetHello, logger))
 
 	//mux.HandleFunc("/user/add/<id>", loggingMiddleware(h.AddUserId))
 	//mux.HandleFunc("/user/del/<id>", loggingMiddleware(h.DelUserId))

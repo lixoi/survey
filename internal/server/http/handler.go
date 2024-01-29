@@ -12,7 +12,7 @@ import (
 
 const defaultInterval = 2 * time.Second
 
-type Service struct {
+type Handler struct {
 	sync.RWMutex
 	Storage  app.App
 	Interval time.Duration
@@ -25,14 +25,14 @@ type Response struct {
 	} `json:"error"`
 }
 
-func NewService(a app.App) *Service {
-	return &Service{
+func NewHandler(a app.App) *Handler {
+	return &Handler{
 		Storage:  a,
 		Interval: defaultInterval,
 	}
 }
 
-func (s *Service) GetHello(w http.ResponseWriter, r *http.Request) {
+func (s *Handler) GetHello(w http.ResponseWriter, r *http.Request) {
 	resp := &Response{}
 	resp.Data = "{\"hello\": \"hello word\"}"
 
