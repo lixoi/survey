@@ -116,6 +116,11 @@ func (s *Storage) AddUser(user storage.User) error {
 	return err
 }
 
+func (s *Storage) getQuestions(user storage.User, table string, size int) []storage.Question {
+
+	return nil
+}
+
 func (s *Storage) Update(e storage.Event) error {
 	row := s.db.QueryRowxContext(s.ctx, `
 		SELECT 1 FROM events WHERE id = $1
