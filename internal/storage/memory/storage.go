@@ -14,8 +14,8 @@ const (
 )
 
 type Storage struct {
-	listEvents []storage.Event
-	mu         sync.RWMutex //nolint:unused
+	listQuestions []storage.Question
+	mu            sync.RWMutex //nolint:unused
 }
 
 func New() *Storage {

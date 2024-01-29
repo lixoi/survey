@@ -4,6 +4,7 @@ import (
 	"context"
 	"database/sql"
 	"fmt"
+	"math/rand"
 	"strconv"
 	"time"
 
@@ -15,10 +16,32 @@ import (
 	storage "github.com/lixoi/survey/internal/storage"
 )
 
+const (
+	MAX_QUESTIONS     = 20
+	BASE_CLASS        = "information_security_questions"
+	PROFILE_CLASS_ONE = "linux_questions"
+	PROFILE_CLASS_TWO = "network_questions"
+)
+
 type Storage struct { // TODO
 	connectParams string
 	db            *sqlx.DB
 	ctx           context.Context
+}
+
+func getRandList(questionsId []int, size int) []int {
+	if len(questionsId) < size {
+		return nil
+	}
+	retQuestionsId := make([]int, size)
+	// rand.Seed(time.Now().Unix())
+	for i := 0; i < size; i++ {
+		n := rand.Intn(len(questionsId))
+		retQuestionsId[i] = questionsId[n]
+		questionsId = append(questionsId[:n], questionsId[n+1:]...)
+	}
+
+	return retQuestionsId
 }
 
 func New(dbparams config.PSQLConfig, log log.Logger) *Storage {
@@ -41,21 +64,46 @@ func (s *Storage) Close(ctx context.Context) error {
 	return s.db.Close()
 }
 
-func (s *Storage) Create(e storage.Event) error {
+func (s *Storage) AddUser(user storage.User) error {
 	row := s.db.QueryRowxContext(s.ctx, `
-		SELECT 1 FROM events WHERE id = $1
-	`, strconv.FormatInt(e.ID, 10))
+		SELECT 1 FROM users WHERE id = $1
+	`, strconv.FormatInt(user.ID, 10))
 
 	var id int64
 	if err := row.Scan(&id); err == nil {
-		return fmt.Errorf("Event with ID %d is exist in DB", e.ID)
+		return fmt.Errorf("Event with ID %d is exist in DB", user.ID)
+	}
+
+	if user.BaseQ == "" {
+		user.BaseQ = BASE_CLASS
+	}
+	if user.FirstFrofileQ == "" {
+		user.FirstFrofileQ = PROFILE_CLASS_ONE
+	}
+	if user.SecProfileQ == "" {
+		user.SecProfileQ = PROFILE_CLASS_TWO
+	}
+	if user.ExistTo.IsZero() {
+		user.ExistTo = time.Now().AddDate(0, 0, 3)
 	}
 
 	query := `
-		INSERT INTO events (id, title, created_at, exist_to, description, user_id, time_send_report)
+		INSERT INTO events (id, base_questions, first_profile_questions, sec_profile_questions, exist_to)
 		VALUES (:id, :title, :created_at, :exist_to, :description, :user_id, :time_send_report)
 	`
 	_, err := s.db.NamedExecContext(s.ctx, query, map[string]interface{}{
+		"id":                      user.ID,
+		"base_questions":          user.BaseQ,
+		"first_profile_questions": user.FirstFrofileQ,
+		"sec_profile_questions":   user.SecProfileQ,
+		"exist_to":                user.ExistTo,
+	})
+
+	query2 := `
+		INSERT INTO events (id, title, created_at, exist_to, description, user_id, time_send_report)
+		VALUES (:id, :title, :created_at, :exist_to, :description, :user_id, :time_send_report)
+	`
+	_, err = s.db.NamedExecContext(s.ctx, query2, map[string]interface{}{
 		"id":               e.ID,
 		"title":            e.Title,
 		"created_at":       e.CreatedAt,

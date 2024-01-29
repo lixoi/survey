@@ -3,9 +3,8 @@ package app
 import (
 	"context"
 	"strconv"
-	"time"
 
-	event "github.com/lixoi/survey/internal/storage"
+	survey "github.com/lixoi/survey/internal/storage"
 )
 
 const (
@@ -25,13 +24,14 @@ type Logger interface {
 }
 
 type Storage interface { // TODO
-	Create(e event.Event) error
+	AddUser(e survey.User) error
+	// AddSurvey(e survey.Event) error
 	Close() error
-	Update(e event.Event) error
-	Delete(id int64) error
-	GetListForDay(date time.Time) []event.Event
-	GetListForWeek(date time.Time) []event.Event
-	GetListForMonth(date time.Time) []event.Event
+	UpdateUser(e survey.User) error
+	UpdateSurvey(e survey.Survey) error
+	DeleteUser(id int64) error
+	// DeleteSurvey(id int64) error
+	GetSurveyForUser(id int64) []survey.Survey
 }
 
 func New(logger Logger, storage Storage) *App {
