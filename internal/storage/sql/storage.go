@@ -3,6 +3,7 @@ package sqlstorage
 import (
 	"context"
 	"database/sql"
+	"errors"
 	"fmt"
 	"math/rand"
 	"strconv"
@@ -29,11 +30,11 @@ type Storage struct { // TODO
 	ctx           context.Context
 }
 
-func getRandList(questionsId []int, size int) []int {
+func getRandList(questionsId []int64, size int) []int64 {
 	if len(questionsId) < size {
 		return nil
 	}
-	retQuestionsId := make([]int, size)
+	retQuestionsId := make([]int64, size)
 	// rand.Seed(time.Now().Unix())
 	for i := 0; i < size; i++ {
 		n := rand.Intn(len(questionsId))
@@ -83,12 +84,22 @@ func (s *Storage) AddUser(user storage.User) error {
 	if user.SecProfileQ == "" {
 		user.SecProfileQ = PROFILE_CLASS_TWO
 	}
+	for _, table := range []info{struct{table: user.BaseQ, size: 10}} { //, user.FirstFrofileQ, user.SecProfileQ} {
+		questions := s.getQuestions(table, 10)
+		if questions == nil {
+			return errors.New("")
+		}
+		if s.addSurvey(user, questions) != nil {
+			return errors.New("")
+		}
+	}
+
 	if user.ExistTo.IsZero() {
 		user.ExistTo = time.Now().AddDate(0, 0, 3)
 	}
 
 	query := `
-		INSERT INTO events (id, base_questions, first_profile_questions, sec_profile_questions, exist_to)
+		INSERT INTO users (id, base_questions, first_profile_questions, sec_profile_questions, exist_to)
 		VALUES (:id, :title, :created_at, :exist_to, :description, :user_id, :time_send_report)
 	`
 	_, err := s.db.NamedExecContext(s.ctx, query, map[string]interface{}{
@@ -99,24 +110,42 @@ func (s *Storage) AddUser(user storage.User) error {
 		"exist_to":                user.ExistTo,
 	})
 
-	query2 := `
-		INSERT INTO events (id, title, created_at, exist_to, description, user_id, time_send_report)
-		VALUES (:id, :title, :created_at, :exist_to, :description, :user_id, :time_send_report)
-	`
-	_, err = s.db.NamedExecContext(s.ctx, query2, map[string]interface{}{
-		"id":               e.ID,
-		"title":            e.Title,
-		"created_at":       e.CreatedAt,
-		"exist_to":         e.ExistTo,
-		"description":      e.Description,
-		"user_id":          e.UserID,
-		"time_send_report": e.TimeSendReport,
-	})
-
 	return err
 }
 
-func (s *Storage) getQuestions(user storage.User, table string, size int) []storage.Question {
+func (s *Storage) getQuestions(table string, size int) []storage.Question {
+	questionsId := []int64{}
+	if s.db.SelectContext(s.ctx, &questionsId, `SELECT id FROM $1`, table) != nil {
+		return nil
+	}
+	if len(questionsId) == 0 || len(questionsId) < size {
+		return nil
+	}
+
+	randQuestions := getRandList(questionsId, size)
+
+	res := []storage.Question{}
+	for _, v := range randQuestions {
+		res = append(res, s.getQuestion(v, table))
+	}
+
+	return res
+}
+
+func (s *Storage) getQuestion(id int64, table string) storage.Question {
+	res := storage.Question{}
+	if s.db.SelectContext(s.ctx,
+		&res,
+		`SELECT 1 FROM $1 WHERE id = $2`,
+		table, strconv.FormatInt(id, 10)) != nil {
+		// error log
+		return res
+	}
+
+	return res
+}
+
+func (s *Storage) addSurvey(user storage.User, questions []storage.Question) error {
 
 	return nil
 }
