@@ -74,7 +74,6 @@ func (s *Storage) AddUser(user storage.User) error {
 	if err := row.Scan(&id); err == nil {
 		return fmt.Errorf("Event with ID %d is exist in DB", user.ID)
 	}
-
 	if user.BaseQ == "" {
 		user.BaseQ = BASE_CLASS
 	}
@@ -84,8 +83,15 @@ func (s *Storage) AddUser(user storage.User) error {
 	if user.SecProfileQ == "" {
 		user.SecProfileQ = PROFILE_CLASS_TWO
 	}
-	for _, table := range []info{struct{table: user.BaseQ, size: 10}} { //, user.FirstFrofileQ, user.SecProfileQ} {
-		questions := s.getQuestions(table, 10)
+	type table struct {
+		name string
+		size int
+	}
+	for _, t := range []table{
+		{name: user.BaseQ, size: MAX_QUESTIONS / 2},
+		{name: user.FirstFrofileQ, size: MAX_QUESTIONS / 4},
+		{name: user.SecProfileQ, size: MAX_QUESTIONS / 4}} {
+		questions := s.getQuestions(t.name, t.size)
 		if questions == nil {
 			return errors.New("")
 		}
@@ -146,11 +152,56 @@ func (s *Storage) getQuestion(id int64, table string) storage.Question {
 }
 
 func (s *Storage) addSurvey(user storage.User, questions []storage.Question) error {
+	query := `
+		INSERT INTO survey (user_id, title, question, question_number)
+		VALUES (:user_id, :title, :question, :question_number)
+	`
+	for i, q := range questions {
+		if _, err := s.db.NamedExecContext(s.ctx, query, map[string]interface{}{
+			"user_id":         user.ID,
+			"title":           "",
+			"question":        q.QuestionText,
+			"question_number": i,
+		}); err != nil {
+			return err
+		}
+
+	}
+	return nil
+}
+
+func (s *Storage) UpdateUser(id int64, done bool) error {
+	row := s.db.QueryRowxContext(s.ctx, `
+		SELECT 1 FROM users WHERE id = $1
+	`, strconv.FormatInt(id, 10))
+
+	if err := row.Scan(&id); err == sql.ErrNoRows {
+		return fmt.Errorf("User  %d is not exist in DB", id)
+	}
+
+	query := `
+		UPDATE users SET survey_done=:survey_done
+		WHERE id=:id
+	`
+	_, err := s.db.NamedExecContext(s.ctx, query, map[string]interface{}{
+		"survey_done": done,
+		"id":          id,
+	})
+
+	return err
+}
+
+func (s *Storage) DeleteUser(id int64) error {
 
 	return nil
 }
 
-func (s *Storage) Update(e storage.Event) error {
+func (s *Storage) deleteSurvey(id int64) error {
+
+	return nil
+}
+
+func (s *Storage) UpdateSurvey(e storage.Event) error {
 	row := s.db.QueryRowxContext(s.ctx, `
 		SELECT 1 FROM events WHERE id = $1
 	`, strconv.FormatInt(e.ID, 10))
@@ -175,6 +226,11 @@ func (s *Storage) Update(e storage.Event) error {
 	})
 
 	return err
+}
+
+func GetSurveyForUser(id int64) []storage.Survey {
+
+	return nil
 }
 
 func (s *Storage) Delete(id int64) error {
