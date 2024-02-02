@@ -25,13 +25,16 @@ type Logger interface {
 
 type Storage interface { // TODO
 	AddUser(e survey.User) error
-	// AddSurvey(e survey.Event) error
-	Close() error
-	UpdateUser(e survey.User) error
-	UpdateSurvey(e survey.Survey) error
+	// addSurvey(e survey.Event) error
+	// getQuestions(table string, size int)
+	// getQuestion(id int64, table string)
+	// addSurvey(user storage.User, questions []storage.Question)
+	UpdateUser(id int64, done bool) error
 	DeleteUser(id int64) error
-	// DeleteSurvey(id int64) error
+	// deleteSurvey(id int64) error
+	UpdateSurvey(userId int64, index int64, answer string) error
 	GetSurveyForUser(id int64) []survey.Survey
+	Close() error
 }
 
 func New(logger Logger, storage Storage) *App {

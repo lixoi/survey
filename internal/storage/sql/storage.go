@@ -106,7 +106,7 @@ func (s *Storage) AddUser(user storage.User) error {
 
 	query := `
 		INSERT INTO users (id, base_questions, first_profile_questions, sec_profile_questions, exist_to)
-		VALUES (:id, :title, :created_at, :exist_to, :description, :user_id, :time_send_report)
+		VALUES (:id, :base_questions, :first_profile_questions, :sec_profile_questions, :exist_to)
 	`
 	_, err := s.db.NamedExecContext(s.ctx, query, map[string]interface{}{
 		"id":                      user.ID,
@@ -192,109 +192,68 @@ func (s *Storage) UpdateUser(id int64, done bool) error {
 }
 
 func (s *Storage) DeleteUser(id int64) error {
+	row := s.db.QueryRowxContext(s.ctx, `
+		SELECT 1 FROM events WHERE id = $1
+	`, strconv.FormatInt(id, 10))
 
-	return nil
+	var getId int64
+	if err := row.Scan(&getId); err == sql.ErrNoRows {
+		return fmt.Errorf("User %d is not exist in DB", id)
+	}
+
+	_, err := s.db.NamedExecContext(s.ctx, `
+		DELETE FROM users WHERE id = :id
+	`, map[string]interface{}{"id": id})
+	if err != nil {
+		return errors.New("")
+	}
+
+	return s.deleteSurvey(id)
 }
 
 func (s *Storage) deleteSurvey(id int64) error {
+	surveyUserId := []int64{}
+	if s.db.SelectContext(s.ctx, &surveyUserId, `SELECT id FROM survey WHERE user_id = $1`, id) != nil {
+		return nil
+	}
+	if len(surveyUserId) == 0 {
+		return nil
+	}
 
-	return nil
+	_, err := s.db.NamedExecContext(s.ctx, `
+		DELETE FROM survey WHERE user_id = :user_id
+	`, map[string]interface{}{"user_id": id})
+
+	return err
 }
 
-func (s *Storage) UpdateSurvey(e storage.Event) error {
+func (s *Storage) UpdateSurvey(userId int64, index int64, answer string) error {
 	row := s.db.QueryRowxContext(s.ctx, `
-		SELECT 1 FROM events WHERE id = $1
-	`, strconv.FormatInt(e.ID, 10))
+		SELECT 1 FROM survey WHERE user_id = $1 AND question_number = $2
+	`, strconv.FormatInt(userId, 10), strconv.FormatInt(index, 10))
 
 	var id int64
 	if err := row.Scan(&id); err == sql.ErrNoRows {
-		return fmt.Errorf("Event with ID %d is not exist in DB", e.ID)
+		return fmt.Errorf("Survey whith index %d for user %d is not exist in DB", index, userId)
 	}
 
 	query := `
-		UPDATE events SET id=:id, title=:title, created_at=:created_at, exist_to=:exist_to, description=:description, user_id=:user_id, time_send_report=:time_send_report
+		UPDATE survey SET answer=:answer, answered_at=:answered_at
 		WHERE id = :id
 	`
 	_, err := s.db.NamedExecContext(s.ctx, query, map[string]interface{}{
-		"id":               e.ID,
-		"title":            e.Title,
-		"created_at":       e.CreatedAt,
-		"exist_to":         e.ExistTo,
-		"description":      e.Description,
-		"user_id":          e.UserID,
-		"time_send_report": e.TimeSendReport,
+		"id":          id,
+		"answer":      answer,
+		"answered_at": time.Now(),
 	})
 
 	return err
 }
 
-func GetSurveyForUser(id int64) []storage.Survey {
-
-	return nil
-}
-
-func (s *Storage) Delete(id int64) error {
-	row := s.db.QueryRowxContext(s.ctx, `
-		SELECT 1 FROM events WHERE id = $1
-	`, strconv.FormatInt(id, 10))
-
-	var getID int64
-	if err := row.Scan(&getID); err == sql.ErrNoRows {
-		return fmt.Errorf("Event with ID %d is not exist in DB", id)
-	}
-
-	_, err := s.db.NamedExecContext(s.ctx, `
-		DELETE FROM events WHERE id = :id
-	`, map[string]interface{}{"id": id})
-
-	return err
-}
-
-func (s *Storage) GetListForDay(date time.Time) []storage.Event {
-	currentDay := time.Date(date.Year(), date.Month(), date.Day(), 0, 0, 0, 0, time.UTC)
-	nextDay := time.Date(date.Year(), date.Month(), date.Day(), 0, 0, 0, 0, time.UTC).AddDate(0, 0, 1)
-	var res []storage.Event
-	query := `
-		SELECT
-			*
-		FROM events
-		WHERE created_at BETWEEN $1 AND $2
-	`
-	if s.db.SelectContext(s.ctx, &res, query, currentDay, nextDay) != nil {
-		return nil
-	}
-
-	return res
-}
-
-func (s *Storage) GetListForWeek(date time.Time) []storage.Event {
-	currentDate := time.Date(date.Year(), date.Month(), date.Day(), 0, 0, 0, 0, time.UTC)
-	finishDate := time.Date(date.Year(), date.Month(), date.Day(), 0, 0, 0, 0, time.UTC).AddDate(0, 0, 7)
-	var res []storage.Event
-	query := `
-			SELECT 
-				* 
-			FROM events
-			WHERE created_at BETWEEN $1 AND $2
-	`
-	if err := s.db.SelectContext(s.ctx, &res, query, currentDate, finishDate); err != nil {
-		return nil
-	}
-
-	return res
-}
-
-func (s *Storage) GetListForMonth(date time.Time) []storage.Event {
-	currentDay := time.Date(date.Year(), date.Month(), date.Day(), 0, 0, 0, 0, time.UTC)
-	finishDate := time.Date(date.Year(), date.Month(), date.Day(), 0, 0, 0, 0, time.UTC).AddDate(0, 1, 0)
-	var res []storage.Event
-	query := `
-		SELECT
-			*
-		FROM events
-		WHERE created_at BETWEEN $1 AND $2
-	`
-	if s.db.SelectContext(s.ctx, &res, query, currentDay, finishDate) != nil {
+func (s *Storage) GetSurveyForUser(id int64) []storage.Survey {
+	var res []storage.Survey
+	query := `SELECT * FROM survey WHERE user_id = $1`
+	if s.db.SelectContext(s.ctx, &res, query, id) != nil {
 		return nil
 	}
 
