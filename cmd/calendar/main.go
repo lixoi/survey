@@ -13,7 +13,7 @@ import (
 	config "github.com/lixoi/survey/internal/config"
 	"github.com/lixoi/survey/internal/logger"
 	internalhttp "github.com/lixoi/survey/internal/server/http"
-	memorystorage "github.com/lixoi/survey/internal/storage/memory"
+	memorystorage "github.com/lixoi/survey/internal/storage/sql"
 	migrations "github.com/lixoi/survey/migrations"
 )
 
@@ -46,7 +46,7 @@ func main() {
 		return
 	}
 
-	storage := memorystorage.New()
+	storage := memorystorage.New(config, *logg)
 	calendar := app.New(logg, storage)
 
 	server := internalhttp.NewServer(logg, *calendar)

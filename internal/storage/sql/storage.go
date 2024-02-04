@@ -45,9 +45,9 @@ func getRandList(questionsId []int64, size int) []int64 {
 	return retQuestionsId
 }
 
-func New(dbparams config.PSQLConfig, log log.Logger) *Storage {
+func New(dbparams config.Config, log log.Logger) *Storage {
 	params := fmt.Sprintf("host=%s port=%s user=%s password=%s dbname=%s sslmode=disable",
-		dbparams.DSN, dbparams.Port, dbparams.User, dbparams.Pass, dbparams.DB)
+		dbparams.PSQL.DSN, dbparams.PSQL.Port, dbparams.PSQL.User, dbparams.PSQL.Pass, dbparams.PSQL.DB)
 	return &Storage{connectParams: params}
 }
 
@@ -59,6 +59,10 @@ func (s *Storage) Connect(c context.Context) (err error) {
 	s.ctx = c
 
 	return s.db.PingContext(s.ctx)
+}
+
+func (s *Storage) Create(ctx context.Context) error {
+	return nil
 }
 
 func (s *Storage) Close(ctx context.Context) error {

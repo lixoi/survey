@@ -2,7 +2,6 @@ package app
 
 import (
 	"context"
-	"strconv"
 
 	survey "github.com/lixoi/survey/internal/storage"
 )
@@ -24,6 +23,8 @@ type Logger interface {
 }
 
 type Storage interface { // TODO
+	Connect(c context.Context) error
+	Create(c context.Context) error
 	AddUser(e survey.User) error
 	// addSurvey(e survey.Event) error
 	// getQuestions(table string, size int)
@@ -34,20 +35,16 @@ type Storage interface { // TODO
 	// deleteSurvey(id int64) error
 	UpdateSurvey(userId int64, index int64, answer string) error
 	GetSurveyForUser(id int64) []survey.Survey
-	Close() error
+	Close(c context.Context) error
 }
 
 func New(logger Logger, storage Storage) *App {
 	return &App{logger: logger, storage: storage}
 }
 
-func (a *App) Create(ctx context.Context, id, title string) error {
+func (a *App) Create(ctx context.Context) error {
 
-	intID, err := strconv.ParseInt(id, 10, 64)
-	if err != nil {
-		return err
-	}
-	err = a.storage.Create(event.Event{ID: intID, Title: title})
+	err := a.storage.Create(ctx)
 	if err != nil {
 		a.logger.Error(ErrExistEvent + " : " + err.Error())
 	}
