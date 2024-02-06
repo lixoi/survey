@@ -1,0 +1,14 @@
+# запуск тестовойц БД
+docker run -d \
+    --name pg \
+    -e POSTGRES_PASSWORD=calendar \
+    -e PGDATA=/var/lib/postgresql/data/pgdata \
+    -v /home/user/PSB/survey/psqldata:/var/lib/postgresql/data \
+    -p 5432:5432 \
+    postgres
+
+# настраиваем БД
+docker exec -it pg psql -Upostgres -dcalendar
+>create database surveys;
+>create user calendar with encrypted password 'calendar';
+>grant all privileges on database surveys to calendar;

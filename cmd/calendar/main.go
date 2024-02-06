@@ -24,7 +24,7 @@ var (
 
 func init() {
 	flag.StringVar(&configFile, "config", "/etc/calendar/config.json", "Path to configuration file")
-	flag.StringVar(&migration, "migration", "", "Up or Down flag to migration DB")
+	flag.StringVar(&migration, "migration", "Up", "Up or Down flag to migration DB")
 }
 
 func main() {
