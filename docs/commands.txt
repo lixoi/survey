@@ -12,3 +12,4 @@ docker exec -it pg psql -Upostgres -dcalendar
 >create database surveys;
 >create user calendar with encrypted password 'calendar';
 >grant all privileges on database surveys to calendar;
+>grant all on schema public to calendar;
