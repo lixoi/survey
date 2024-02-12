@@ -5,8 +5,8 @@
     "PSQL": {
         "DNS": "localhost",
         "Port": "5432",
-        "User": "calendar",
-        "Pass": "calendar",
+        "User": "test",
+        "Pass": "test",
         "DB": "surveys"
     },
     "Migration": {

@@ -4,6 +4,7 @@ import (
 	"context"
 	"flag"
 	"fmt"
+	"math/rand"
 	"os"
 	"os/signal"
 	"syscall"
@@ -13,7 +14,8 @@ import (
 	config "github.com/lixoi/survey/internal/config"
 	"github.com/lixoi/survey/internal/logger"
 	internalhttp "github.com/lixoi/survey/internal/server/http"
-	memorystorage "github.com/lixoi/survey/internal/storage/sql"
+	storage "github.com/lixoi/survey/internal/storage"
+	sqlstorage "github.com/lixoi/survey/internal/storage/sql"
 	migrations "github.com/lixoi/survey/migrations"
 )
 
@@ -24,7 +26,7 @@ var (
 
 func init() {
 	flag.StringVar(&configFile, "config", "/etc/calendar/config.json", "Path to configuration file")
-	flag.StringVar(&migration, "migration", "Up", "Up or Down flag to migration DB")
+	flag.StringVar(&migration, "migration", "", "Up or Down flag to migration DB")
 }
 
 func main() {
@@ -46,8 +48,10 @@ func main() {
 		return
 	}
 
-	storage := memorystorage.New(config, *logg)
-	calendar := app.New(logg, storage)
+	strg := sqlstorage.New(config, *logg)
+	calendar := app.New(logg, strg)
+
+	databaseTests(strg)
 
 	server := internalhttp.NewServer(logg, *calendar)
 
@@ -66,6 +70,10 @@ func main() {
 		}
 	}()
 
+	if err = strg.Connect(ctx); err != nil {
+		return
+	}
+
 	logg.Info("calendar is running...")
 
 	if err := server.Start(ctx); err != nil {
@@ -73,4 +81,14 @@ func main() {
 		cancel()
 		os.Exit(1) //nolint:gocritic
 	}
+}
+
+func databaseTests(strq *sqlstorage.Storage) error {
+	strq.Connect(context.Background())
+	user := storage.User{
+		ID: rand.Int63n(300),
+	}
+	strq.AddUser(user)
+
+	return nil
 }

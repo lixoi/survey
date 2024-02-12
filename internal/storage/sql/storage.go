@@ -18,7 +18,7 @@ import (
 )
 
 const (
-	MAX_QUESTIONS     = 20
+	MAX_QUESTIONS     = 3
 	BASE_CLASS        = "information_security_questions"
 	PROFILE_CLASS_ONE = "linux_questions"
 	PROFILE_CLASS_TWO = "network_questions"
@@ -125,7 +125,8 @@ func (s *Storage) AddUser(user storage.User) error {
 
 func (s *Storage) getQuestions(table string, size int) []storage.Question {
 	questionsId := []int64{}
-	if s.db.SelectContext(s.ctx, &questionsId, `SELECT id FROM $1`, table) != nil {
+	if err := s.db.SelectContext(s.ctx, &questionsId, `SELECT id FROM `+table); err != nil {
+		fmt.Println(err)
 		return nil
 	}
 	if len(questionsId) == 0 || len(questionsId) < size {

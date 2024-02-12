@@ -11,7 +11,7 @@ import (
 	log "github.com/lixoi/survey/internal/logger"
 )
 
-//go:embed *.sql
+//go:embed 21062023_init.sql
 var embedMigrations embed.FS
 
 func UpDown(dbparams config.PSQLConfig, migration string, log log.Logger) error {
