@@ -19,7 +19,7 @@ import (
 
 const (
 	MAX_QUESTIONS     = 3
-	BASE_CLASS        = "information_security_questions"
+	BASE_CLASS        = "security_questions"
 	PROFILE_CLASS_ONE = "linux_questions"
 	PROFILE_CLASS_TWO = "network_questions"
 )
@@ -110,15 +110,9 @@ func (s *Storage) AddUser(user storage.User) error {
 
 	query := `
 		INSERT INTO users (id, base_questions, first_profile_questions, sec_profile_questions, exist_to)
-		VALUES (:id, :base_questions, :first_profile_questions, :sec_profile_questions, :exist_to)
+		VALUES ($1, $2, $3, $4, $5)
 	`
-	_, err := s.db.NamedExecContext(s.ctx, query, map[string]interface{}{
-		"id":                      user.ID,
-		"base_questions":          user.BaseQ,
-		"first_profile_questions": user.FirstFrofileQ,
-		"sec_profile_questions":   user.SecProfileQ,
-		"exist_to":                user.ExistTo,
-	})
+	_, err := s.db.ExecContext(s.ctx, query, user.ID, user.BaseQ, user.FirstFrofileQ, user.SecProfileQ, user.ExistTo)
 
 	return err
 }
@@ -144,16 +138,17 @@ func (s *Storage) getQuestions(table string, size int) []storage.Question {
 }
 
 func (s *Storage) getQuestion(id int64, table string) storage.Question {
-	res := storage.Question{}
-	if s.db.SelectContext(s.ctx,
+	res := []storage.Question{}
+	if err := s.db.SelectContext(s.ctx,
 		&res,
-		`SELECT 1 FROM $1 WHERE id = $2`,
-		table, strconv.FormatInt(id, 10)) != nil {
+		`SELECT * FROM `+table+` WHERE id = $1`,
+		strconv.FormatInt(id, 10)); err != nil {
+		fmt.Println(err.Error())
 		// error log
-		return res
+		return res[0]
 	}
 
-	return res
+	return res[0]
 }
 
 func (s *Storage) addSurvey(user storage.User, questions []storage.Question) error {

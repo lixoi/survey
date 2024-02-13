@@ -21,4 +21,4 @@ docker exec -it pg psql -Upostgres -dsurveys
 # тест
 >docker exec -it pg psql -Utest -dsurveys
 # вывод всех таблиц в БД
->   
+>select * from pg_catalog.pg_tables where schemaname='public';

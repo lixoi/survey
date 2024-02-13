@@ -17,7 +17,7 @@ CREATE table network_questions (
     description text
 );
 
-CREATE table information_security_questions (
+CREATE table security_questions (
     id          serial primary key,
     question    text,
     description text
@@ -53,11 +53,11 @@ VALUES
     ('network question 2', 'network test description 2'),
     ('network question 3', 'network test description 3');
 
-INSERT INTO information_security_questions (question, description)
+INSERT INTO security_questions (question, description)
 VALUES
-    ('information security question 1', 'information security test description 1'),
-    ('information security question 2', 'information security test description 2'),
-    ('information security question 3', 'information security test description 3');
+    (' security question 1', ' security test description 1'),
+    (' security question 2', ' security test description 2'),
+    (' security question 3', ' security test description 3');
 
 INSERT INTO container_questions (question, description)
 VALUES
@@ -78,6 +78,6 @@ VALUES
 drop table linux_questions;
 drop table k8s_guestions;
 drop table network_questions;
-drop table information_security_questions;
+drop table security_questions;
 drop table container_questions;
 drop table developer_guestions;
