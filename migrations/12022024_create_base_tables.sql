@@ -11,9 +11,9 @@
 CREATE table survey (
     id              serial primary key,
     user_id         integer,
-    title           text,
-    question        text,
-    answer          text,
+    title           text default '',
+    question        text default '',
+    answer          text default '',
     answered_at     timestamptz not null default now(),
     question_number integer
 );

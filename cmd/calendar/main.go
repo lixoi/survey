@@ -84,11 +84,18 @@ func main() {
 }
 
 func databaseTests(strq *sqlstorage.Storage) error {
-	strq.Connect(context.Background())
+	c := context.Background()
+	strq.Connect(c)
 	user := storage.User{
 		ID: rand.Int63n(300),
 	}
-	strq.AddUser(user)
+	_ = user
+	strq.AddUser(c, user)
+	//strq.UpdateSurvey(255, 2, "answer")
+	//strq.DeleteUser(284)
+	//strq.AddUser(user)
+	//strq.UpdateUser(284, true)
+	strq.GetSurveyForUser(c, 161)
 
 	return nil
 }

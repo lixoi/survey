@@ -39,9 +39,7 @@ func (l Logger) Wirning(msg string) {
 }
 
 func (l Logger) Error(msg string) {
-	//if l.level == levelError {
 	fmt.Println(levelError + ": " + msg)
-	//}
 }
 
 // TODO

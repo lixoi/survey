@@ -26,8 +26,8 @@ const (
 
 type Storage struct { // TODO
 	connectParams string
+	logg          log.Logger
 	db            *sqlx.DB
-	ctx           context.Context
 }
 
 func getRandList(questionsId []int64, size int) []int64 {
@@ -35,7 +35,6 @@ func getRandList(questionsId []int64, size int) []int64 {
 		return nil
 	}
 	retQuestionsId := make([]int64, size)
-	// rand.Seed(time.Now().Unix())
 	for i := 0; i < size; i++ {
 		n := rand.Intn(len(questionsId))
 		retQuestionsId[i] = questionsId[n]
@@ -45,20 +44,27 @@ func getRandList(questionsId []int64, size int) []int64 {
 	return retQuestionsId
 }
 
-func New(dbparams config.Config, log log.Logger) *Storage {
+func New(dbparams config.Config, logg log.Logger) *Storage {
 	params := fmt.Sprintf("host=%s port=%s user=%s password=%s dbname=%s sslmode=disable",
 		dbparams.PSQL.DSN, dbparams.PSQL.Port, dbparams.PSQL.User, dbparams.PSQL.Pass, dbparams.PSQL.DB)
-	return &Storage{connectParams: params}
+	return &Storage{
+		connectParams: params,
+		logg:          logg,
+	}
 }
 
-func (s *Storage) Connect(c context.Context) (err error) {
+func (s *Storage) Connect(ctx context.Context) (err error) {
 	s.db, err = sqlx.Open("pgx", s.connectParams)
 	if err != nil {
-		return fmt.Errorf("cannot open pgx driver: %w", err)
+		s.logg.Error("cannot open pgx driver: " + err.Error())
+		return errors.New("Error conneect to DB")
 	}
-	s.ctx = c
 
-	return s.db.PingContext(s.ctx)
+	if err = s.db.PingContext(ctx); err != nil {
+		s.logg.Error("cannot ping to DB")
+	}
+
+	return nil
 }
 
 func (s *Storage) Create(ctx context.Context) error {
@@ -69,14 +75,15 @@ func (s *Storage) Close(ctx context.Context) error {
 	return s.db.Close()
 }
 
-func (s *Storage) AddUser(user storage.User) error {
-	row := s.db.QueryRowxContext(s.ctx, `
+func (s *Storage) AddUser(ctx context.Context, user storage.User) error {
+	row := s.db.QueryRowxContext(ctx, `
 		SELECT 1 FROM users WHERE id = $1
 	`, strconv.FormatInt(user.ID, 10))
 
 	var id int64
 	if err := row.Scan(&id); err == nil {
-		return fmt.Errorf("Event with ID %d is exist in DB", user.ID)
+		s.logg.Error("Event with ID " + strconv.FormatInt(user.ID, 10) + " is exist in DB")
+		return errors.New("This user is exists in DB")
 	}
 	if user.BaseQ == "" {
 		user.BaseQ = BASE_CLASS
@@ -91,17 +98,21 @@ func (s *Storage) AddUser(user storage.User) error {
 		name string
 		size int
 	}
+	index := 1
 	for _, t := range []table{
 		{name: user.BaseQ, size: MAX_QUESTIONS / 2},
 		{name: user.FirstFrofileQ, size: MAX_QUESTIONS / 4},
 		{name: user.SecProfileQ, size: MAX_QUESTIONS / 4}} {
-		questions := s.getQuestions(t.name, t.size)
+		questions := s.getQuestions(ctx, t.name, t.size)
 		if questions == nil {
-			return errors.New("")
+			s.logg.Error("AddUser " + strconv.FormatInt(user.ID, 10) + ": Not questions " + t.name)
+			return errors.New("Not questions " + t.name)
 		}
-		if s.addSurvey(user, questions) != nil {
-			return errors.New("")
+		if err := s.addSurvey(ctx, user, questions, index); err != nil {
+			s.logg.Error("AddUser " + strconv.FormatInt(user.ID, 10) + ": " + err.Error())
+			return errors.New("Not add survey")
 		}
+		index += len(questions)
 	}
 
 	if user.ExistTo.IsZero() {
@@ -110,59 +121,72 @@ func (s *Storage) AddUser(user storage.User) error {
 
 	query := `
 		INSERT INTO users (id, base_questions, first_profile_questions, sec_profile_questions, exist_to)
-		VALUES ($1, $2, $3, $4, $5)
+		VALUES (:id, :base_questions, :first_profile_questions, :sec_profile_questions, :exist_to)
 	`
-	_, err := s.db.ExecContext(s.ctx, query, user.ID, user.BaseQ, user.FirstFrofileQ, user.SecProfileQ, user.ExistTo)
+	_, err := s.db.NamedExecContext(ctx, query, map[string]interface{}{
+		"id":                      user.ID,
+		"base_questions":          user.BaseQ,
+		"first_profile_questions": user.FirstFrofileQ,
+		"sec_profile_questions":   user.SecProfileQ,
+		"exist_to":                user.ExistTo,
+	})
 
-	return err
+	if err != nil {
+		s.logg.Error("Not add user " + strconv.FormatInt(user.ID, 10) + "to users table: " + err.Error())
+		return err
+	}
+
+	return nil
 }
 
-func (s *Storage) getQuestions(table string, size int) []storage.Question {
+func (s *Storage) getQuestions(ctx context.Context, table string, size int) []string {
 	questionsId := []int64{}
-	if err := s.db.SelectContext(s.ctx, &questionsId, `SELECT id FROM `+table); err != nil {
-		fmt.Println(err)
+	if err := s.db.SelectContext(ctx, &questionsId, `SELECT id FROM `+table); err != nil {
+		s.logg.Error("Do not select from " + table + " : " + err.Error())
 		return nil
 	}
 	if len(questionsId) == 0 || len(questionsId) < size {
+		s.logg.Error("Size of questions in " + table + " is not current")
 		return nil
 	}
 
-	randQuestions := getRandList(questionsId, size)
+	questionsId = getRandList(questionsId, size)
 
-	res := []storage.Question{}
-	for _, v := range randQuestions {
-		res = append(res, s.getQuestion(v, table))
+	res := []string{}
+	for _, v := range questionsId {
+		res = append(res, s.getQuestion(ctx, v, table))
 	}
 
 	return res
 }
 
-func (s *Storage) getQuestion(id int64, table string) storage.Question {
-	res := []storage.Question{}
-	if err := s.db.SelectContext(s.ctx,
-		&res,
-		`SELECT * FROM `+table+` WHERE id = $1`,
-		strconv.FormatInt(id, 10)); err != nil {
-		fmt.Println(err.Error())
-		// error log
-		return res[0]
+func (s *Storage) getQuestion(ctx context.Context, id int64, table string) string {
+	var question string
+	row := s.db.QueryRowxContext(ctx, `
+		SELECT question FROM `+table+` WHERE id = $1 LIMIT 1
+	`, strconv.FormatInt(id, 10))
+
+	if err := row.Scan(&question); err == sql.ErrNoRows {
+		s.logg.Error("Not questions in table " + table)
+		return ""
 	}
 
-	return res[0]
+	return question
 }
 
-func (s *Storage) addSurvey(user storage.User, questions []storage.Question) error {
+func (s *Storage) addSurvey(ctx context.Context, user storage.User, questions []string, index int) error {
 	query := `
 		INSERT INTO survey (user_id, title, question, question_number)
 		VALUES (:user_id, :title, :question, :question_number)
 	`
 	for i, q := range questions {
-		if _, err := s.db.NamedExecContext(s.ctx, query, map[string]interface{}{
+		if _, err := s.db.NamedExecContext(ctx, query, map[string]interface{}{
 			"user_id":         user.ID,
 			"title":           "",
-			"question":        q.QuestionText,
-			"question_number": i,
+			"question":        q,
+			"question_number": index + i,
 		}); err != nil {
+			s.logg.Error("Not insert question in table survey: " + err.Error())
 			return err
 		}
 
@@ -170,70 +194,78 @@ func (s *Storage) addSurvey(user storage.User, questions []storage.Question) err
 	return nil
 }
 
-func (s *Storage) UpdateUser(id int64, done bool) error {
-	row := s.db.QueryRowxContext(s.ctx, `
-		SELECT 1 FROM users WHERE id = $1
-	`, strconv.FormatInt(id, 10))
-
-	if err := row.Scan(&id); err == sql.ErrNoRows {
-		return fmt.Errorf("User  %d is not exist in DB", id)
-	}
-
-	query := `
-		UPDATE users SET survey_done=:survey_done
-		WHERE id=:id
-	`
-	_, err := s.db.NamedExecContext(s.ctx, query, map[string]interface{}{
-		"survey_done": done,
-		"id":          id,
-	})
-
-	return err
-}
-
-func (s *Storage) DeleteUser(id int64) error {
-	row := s.db.QueryRowxContext(s.ctx, `
-		SELECT 1 FROM events WHERE id = $1
+func (s *Storage) UpdateUser(ctx context.Context, id int64, done bool) error {
+	row := s.db.QueryRowxContext(ctx, `
+		SELECT id FROM users WHERE id = $1 LIMIT 1
 	`, strconv.FormatInt(id, 10))
 
 	var getId int64
 	if err := row.Scan(&getId); err == sql.ErrNoRows {
+		s.logg.Error("Not user " + strconv.FormatInt(id, 10) + " in users table: " + err.Error())
+		return fmt.Errorf("Not user in users table")
+	}
+
+	query := `UPDATE users SET survey_done = $1 WHERE id= $2`
+	_, err := s.db.ExecContext(ctx, query, done, id)
+	if err != nil {
+		s.logg.Error("Not update user " + strconv.FormatInt(id, 10) + " : " + err.Error())
+		return fmt.Errorf("Not update user")
+	}
+
+	return nil
+}
+
+func (s *Storage) DeleteUser(ctx context.Context, id int64) error {
+	row := s.db.QueryRowxContext(ctx, `
+		SELECT id FROM users WHERE id = $1 LIMIT 1
+	`, strconv.FormatInt(id, 10))
+
+	var getId int64
+	if err := row.Scan(&getId); err == sql.ErrNoRows {
+		s.logg.Error("Not user " + strconv.FormatInt(id, 10) + " in users table: " + err.Error())
 		return fmt.Errorf("User %d is not exist in DB", id)
 	}
 
-	_, err := s.db.NamedExecContext(s.ctx, `
-		DELETE FROM users WHERE id = :id
-	`, map[string]interface{}{"id": id})
-	if err != nil {
-		return errors.New("")
+	if _, err := s.db.ExecContext(ctx, `DELETE FROM users WHERE id = $1`, id); err != nil {
+		s.logg.Error("Not delete user " + strconv.FormatInt(id, 10) + " : " + err.Error())
+		return fmt.Errorf("Not delete user")
 	}
 
-	return s.deleteSurvey(id)
+	return s.deleteSurvey(ctx, id)
 }
 
-func (s *Storage) deleteSurvey(id int64) error {
+func (s *Storage) deleteSurvey(ctx context.Context, id int64) error {
 	surveyUserId := []int64{}
-	if s.db.SelectContext(s.ctx, &surveyUserId, `SELECT id FROM survey WHERE user_id = $1`, id) != nil {
-		return nil
+	if err := s.db.SelectContext(ctx, &surveyUserId, `SELECT id FROM survey WHERE user_id = $1`, id); err != nil {
+		s.logg.Error("Not select surveys for user " + strconv.FormatInt(id, 10) + " : " + err.Error())
+		return err
 	}
+
 	if len(surveyUserId) == 0 {
+		s.logg.Wirning("Not surveys for user " + strconv.FormatInt(id, 10))
 		return nil
 	}
 
-	_, err := s.db.NamedExecContext(s.ctx, `
-		DELETE FROM survey WHERE user_id = :user_id
-	`, map[string]interface{}{"user_id": id})
+	if _, err := s.db.ExecContext(ctx, `DELETE FROM survey WHERE user_id = $1`, id); err != nil {
+		s.logg.Error("Not delete surveys for user " + strconv.FormatInt(id, 10) + " : " + err.Error())
+		return err
+	}
 
-	return err
+	return nil
 }
 
-func (s *Storage) UpdateSurvey(userId int64, index int64, answer string) error {
-	row := s.db.QueryRowxContext(s.ctx, `
-		SELECT 1 FROM survey WHERE user_id = $1 AND question_number = $2
+func (s *Storage) UpdateSurvey(ctx context.Context, userId int64, index int64, answer string) error {
+	row := s.db.QueryRowxContext(ctx, `
+		SELECT id FROM survey WHERE user_id = $1 AND question_number = $2 LIMIT 1
 	`, strconv.FormatInt(userId, 10), strconv.FormatInt(index, 10))
 
 	var id int64
 	if err := row.Scan(&id); err == sql.ErrNoRows {
+		s.logg.Error("Survey whith index " +
+			strconv.FormatInt(index, 10) +
+			" for user " +
+			strconv.FormatInt(userId, 10) +
+			" is not exist in DB: " + err.Error())
 		return fmt.Errorf("Survey whith index %d for user %d is not exist in DB", index, userId)
 	}
 
@@ -241,19 +273,27 @@ func (s *Storage) UpdateSurvey(userId int64, index int64, answer string) error {
 		UPDATE survey SET answer=:answer, answered_at=:answered_at
 		WHERE id = :id
 	`
-	_, err := s.db.NamedExecContext(s.ctx, query, map[string]interface{}{
+	if _, err := s.db.NamedExecContext(ctx, query, map[string]interface{}{
 		"id":          id,
 		"answer":      answer,
 		"answered_at": time.Now(),
-	})
+	}); err != nil {
+		s.logg.Error("Survey whith index " +
+			strconv.FormatInt(index, 10) +
+			" or user " +
+			strconv.FormatInt(userId, 10) +
+			" is not updated in DB: " + err.Error())
+		return err
+	}
 
-	return err
+	return nil
 }
 
-func (s *Storage) GetSurveyForUser(id int64) []storage.Survey {
+func (s *Storage) GetSurveyForUser(ctx context.Context, id int64) []storage.Survey {
 	var res []storage.Survey
 	query := `SELECT * FROM survey WHERE user_id = $1`
-	if s.db.SelectContext(s.ctx, &res, query, id) != nil {
+	if err := s.db.SelectContext(ctx, &res, query, id); err != nil {
+		s.logg.Error("Not select survey for user " + strconv.FormatInt(id, 10))
 		return nil
 	}
 

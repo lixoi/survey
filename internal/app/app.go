@@ -25,16 +25,16 @@ type Logger interface {
 type Storage interface { // TODO
 	Connect(c context.Context) error
 	Create(c context.Context) error
-	AddUser(e survey.User) error
+	AddUser(ctx context.Context, e survey.User) error
 	// addSurvey(e survey.Event) error
 	// getQuestions(table string, size int)
 	// getQuestion(id int64, table string)
 	// addSurvey(user storage.User, questions []storage.Question)
-	UpdateUser(id int64, done bool) error
-	DeleteUser(id int64) error
+	UpdateUser(ctx context.Context, id int64, done bool) error
+	DeleteUser(ctx context.Context, id int64) error
 	// deleteSurvey(id int64) error
-	UpdateSurvey(userId int64, index int64, answer string) error
-	GetSurveyForUser(id int64) []survey.Survey
+	UpdateSurvey(ctx context.Context, userId int64, index int64, answer string) error
+	GetSurveyForUser(ctx context.Context, id int64) []survey.Survey
 	Close(c context.Context) error
 }
 
