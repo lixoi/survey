@@ -17,19 +17,27 @@ message User {
 message Answer {
     double user_id = 1;
     string answer = 3;
-    double index = 2;
+    double number = 2;
 }
 
-message Question {
+message Survey {
     double user_id = 1;
     string title = 2;
     string question = 3;
-    string answer = 4;
-    string number = 5;
+    string answered_at = 4;
+    string answer = 5;
+    string number = 6;
 }
 
 message SurveyRespone {
-    repeated Question qs = 1;
+    repeated Survey qs = 1;
+}
+
+message QuestionRespone {
+    double user_id = 1;
+    string question = 2;
+    double number = 3;
+    string message = 4;
 }
 
 message StatusResponse {
@@ -40,6 +48,9 @@ service ICHSurvey {
     rpc AddCandidate(AddUser) returns (StatusResponse) {}
     rpc DeleteCandidate(User) returns (StatusResponse) {}
     rpc UpdateCandidate(User) returns (StatusResponse) {}
+
+    rpc StartSurvey(User) returns 
+
     rpc AddAnswer(Answer) returns (StatusResponse) {}
     rpc GetSurveyForCandidate(User) returns (SurveyRespone) {}
     rpc GetAnswersOfCandidate(User) returns (SurveyRespone) {}

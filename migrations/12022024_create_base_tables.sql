@@ -14,7 +14,7 @@ CREATE table survey (
     title           text default '',
     question        text default '',
     answer          text default '',
-    answered_at     timestamptz not null default now(),
+    answered_at     timestamptz default null,
     question_number integer
 );
 
@@ -25,5 +25,6 @@ CREATE table users (
     sec_profile_questions     question_table,
     survey_done               boolean not null default false,
     created_at                timestamptz not null default now(),
+    survey_start              timestamptz default null,  
     exist_to                  timestamptz not null default now()+interval '3 day'
 ); 

@@ -6,7 +6,7 @@ type Survey struct {
 	ID             int64
 	UserID         string `db:"user_id"`
 	Title          string
-	QuestionText   string `db:"question"`
+	Question       string `db:"question"`
 	Answer         string
 	AnsweredAt     time.Time `db:"answered_at"`
 	QuestionNumber int64     `db:"question_number"`
