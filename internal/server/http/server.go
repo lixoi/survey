@@ -8,7 +8,8 @@ import (
 )
 
 type Server struct { // TODO
-	srv *http.Server
+	srv  *http.Server
+	logg app.Logger
 	//storage app.Storage
 }
 
@@ -37,12 +38,17 @@ func NewServer(logger app.Logger, a app.App) *Server {
 	return &Server{srv: &http.Server{
 		Addr:    ":8080",
 		Handler: mux,
-	}}
+	},
+		logg: logger,
+	}
 }
 
 func (s *Server) Start(ctx context.Context) error {
 	// TODO
-	s.srv.ListenAndServe()
+	if err := s.srv.ListenAndServe(); err != nil {
+		s.logg.Error("Not start server: " + err.Error())
+		return err
+	}
 	s.Stop(ctx)
 	return nil
 }
