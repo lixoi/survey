@@ -15,7 +15,7 @@ type Survey struct {
 type User struct {
 	ID            int64
 	BaseQ         string    `db:"base_questions"`
-	FirstFrofileQ string    `db:"first_profile_questions"`
+	FirstProfileQ string    `db:"first_profile_questions"`
 	SecProfileQ   string    `db:"sec_profile_questions"`
 	SurveyDone    bool      `db:"survey_done"`
 	CreatedAt     time.Time `db:"created_at"`

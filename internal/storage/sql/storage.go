@@ -88,8 +88,8 @@ func (s *Storage) AddUser(ctx context.Context, user storage.User) error {
 	if user.BaseQ == "" {
 		user.BaseQ = BASE_CLASS
 	}
-	if user.FirstFrofileQ == "" {
-		user.FirstFrofileQ = PROFILE_CLASS_ONE
+	if user.FirstProfileQ == "" {
+		user.FirstProfileQ = PROFILE_CLASS_ONE
 	}
 	if user.SecProfileQ == "" {
 		user.SecProfileQ = PROFILE_CLASS_TWO
@@ -101,7 +101,7 @@ func (s *Storage) AddUser(ctx context.Context, user storage.User) error {
 	index := 1
 	for _, t := range []table{
 		{name: user.BaseQ, size: MAX_QUESTIONS / 2},
-		{name: user.FirstFrofileQ, size: MAX_QUESTIONS / 4},
+		{name: user.FirstProfileQ, size: MAX_QUESTIONS / 4},
 		{name: user.SecProfileQ, size: MAX_QUESTIONS / 4}} {
 		questions := s.getQuestions(ctx, t.name, t.size)
 		if questions == nil {
@@ -126,7 +126,7 @@ func (s *Storage) AddUser(ctx context.Context, user storage.User) error {
 	_, err := s.db.NamedExecContext(ctx, query, map[string]interface{}{
 		"id":                      user.ID,
 		"base_questions":          user.BaseQ,
-		"first_profile_questions": user.FirstFrofileQ,
+		"first_profile_questions": user.FirstProfileQ,
 		"sec_profile_questions":   user.SecProfileQ,
 		"exist_to":                user.ExistTo,
 	})
@@ -255,10 +255,14 @@ func (s *Storage) deleteSurvey(ctx context.Context, id int64) error {
 }
 
 func (s *Storage) UpdateSurvey(ctx context.Context, userId int64, index int64, answer string) error {
+	// if start survey
+	if index == 1 && s.isSurveyStartedFor(ctx, userId) {
+		return fmt.Errorf("Survey is already started or finished for user %d", userId)
+	}
+
 	row := s.db.QueryRowxContext(ctx, `
 		SELECT id FROM survey WHERE user_id = $1 AND question_number = $2 LIMIT 1
 	`, strconv.FormatInt(userId, 10), strconv.FormatInt(index, 10))
-
 	var id int64
 	if err := row.Scan(&id); err == sql.ErrNoRows {
 		s.logg.Error("Survey whith index " +
@@ -287,6 +291,27 @@ func (s *Storage) UpdateSurvey(ctx context.Context, userId int64, index int64, a
 	}
 
 	return nil
+}
+
+func (s *Storage) isSurveyStartedFor(ctx context.Context, userId int64) bool {
+	row := s.db.QueryRowxContext(ctx, `
+		SELECT survey_start FROM users WHERE id = $1 LIMIT 1
+		`, strconv.FormatInt(userId, 10))
+	var isStart time.Time
+	if err := row.Scan(&isStart); err == sql.ErrNoRows || isStart.IsZero() == true {
+		s.logg.Error("Survey is already started or finished for user " + strconv.FormatInt(userId, 10))
+		return true
+	}
+
+	// init start survey for user
+	query := `UPDATE users SET survey_start = $1 WHERE id= $2`
+	_, err := s.db.ExecContext(ctx, query, time.Now(), userId)
+	if err != nil {
+		s.logg.Error("Not update user " + strconv.FormatInt(userId, 10) + " : " + err.Error())
+		return true
+	}
+
+	return false
 }
 
 func (s *Storage) GetSurveyForUser(ctx context.Context, id int64) []storage.Survey {

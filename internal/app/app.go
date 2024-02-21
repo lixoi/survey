@@ -33,7 +33,7 @@ type Storage interface { // TODO
 	UpdateUser(ctx context.Context, id int64, done bool) error
 	DeleteUser(ctx context.Context, id int64) error
 	// deleteSurvey(id int64) error
-	UpdateQuestion(ctx context.Context, userId int64, index int64, answer string) error
+	UpdateSurvey(ctx context.Context, userId int64, index int64, answer string) error
 	GetSurveyForUser(ctx context.Context, userId int64) []survey.Survey
 	Close(c context.Context) error
 }
