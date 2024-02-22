@@ -3,7 +3,7 @@ package app
 import (
 	"context"
 
-	survey "github.com/lixoi/survey/internal/storage"
+	storage "github.com/lixoi/survey/internal/storage"
 )
 
 const (
@@ -25,16 +25,22 @@ type Logger interface {
 type Storage interface { // TODO
 	Connect(c context.Context) error
 	Create(c context.Context) error
-	AddUser(ctx context.Context, e survey.User) error
+	AddUser(ctx context.Context, user storage.User) error
 	// addSurvey(e survey.Event) error
 	// getQuestions(table string, size int)
 	// getQuestion(id int64, table string)
 	// addSurvey(user storage.User, questions []storage.Question)
-	UpdateUser(ctx context.Context, id int64, done bool) error
-	DeleteUser(ctx context.Context, id int64) error
+	FinishSurveyFor(ctx context.Context, userId int64, done bool) error
+	DeleteUser(ctx context.Context, userId int64) error
 	// deleteSurvey(id int64) error
+	StartSurveyFor(ctx context.Context, userId int64) (*storage.Survey, error)
+	SetAnswerFor(ctx context.Context, userId int64, index int64, answer string) (*storage.Survey, error)
+	GetSurveyFor(ctx context.Context, userId int64) ([]storage.Survey, error)
+	// isSurveyStartedFor(ctx context.Context, userId int64) bool
+	// isExistQuestionFor(ctx context.Context, userId int64, index int64) int64
+
 	UpdateSurvey(ctx context.Context, userId int64, index int64, answer string) error
-	GetSurveyForUser(ctx context.Context, userId int64) []survey.Survey
+	GetSurveyForUser(ctx context.Context, userId int64) []storage.Survey
 	Close(c context.Context) error
 }
 

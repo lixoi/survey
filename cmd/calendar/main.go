@@ -49,11 +49,11 @@ func main() {
 	}
 
 	strg := sqlstorage.New(config, *logg)
-	calendar := app.New(logg, strg)
+	survey := app.New(logg, strg)
 
 	databaseTests(strg)
 
-	server := internalhttp.NewServer(logg, *calendar)
+	server := internalhttp.NewServer(logg, *survey)
 
 	ctx, cancel := signal.NotifyContext(context.Background(),
 		syscall.SIGINT, syscall.SIGTERM, syscall.SIGHUP)

@@ -18,6 +18,7 @@ type User struct {
 	FirstProfileQ string    `db:"first_profile_questions"`
 	SecProfileQ   string    `db:"sec_profile_questions"`
 	SurveyDone    bool      `db:"survey_done"`
+	SurveyStart   time.Time `db:"survey_start"`
 	CreatedAt     time.Time `db:"created_at"`
 	ExistTo       time.Time `db:"exist_to"`
 }
