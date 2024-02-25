@@ -4,31 +4,34 @@ package api;
 
 option go_package = "./;api";
 
+import "google/protobuf/timestamp.proto";
+
 enum ClassQuestions {
-    linux_questions = 0;
-    k8s_questions = 1;
-    network_questions = 2;
-    security_questions = 3;
-    container_questions = 4;
-    developer_questions = 5;
+    UNKNOWN_QUESTIONS_CLASS = 0;
+    LINUX_QUESTIONS = 1;
+    K8S_QUESTIONS = 2;
+    NETWORK_QUESTIONS = 3;
+    SECURITY_QUESTIONS = 4;
+    CONTAINER_QUESTIONS = 5;
+    DEVELOPER_UESTIONS = 6;
 }
 
-message AddUser {
+message UserInfoRequest {
     uint64 user_id = 1;
-    ClassQuestions base_question = 2;
-    ClassQuestions first_guestion = 3;
-    ClassQuestions second_guestion = 4;
+    uint32 exist_to = 2;
+    ClassQuestions base_question = 3;
+    ClassQuestions first_guestion = 4;
+    ClassQuestions second_guestion = 5;
 }
 
-message User {
+message AnswerRequest {
     uint64 user_id = 1;
-    string number = 2;
+    string answer = 2;
+    uint32 number = 3;
 }
 
-message Answer {
+message UserIdRequest {
     uint64 user_id = 1;
-    string answer = 3;
-    uint32 number = 2;
 }
 
 message Survey {
@@ -40,11 +43,13 @@ message Survey {
     string number = 6;
 }
 
-message SurveyRespone {
-    repeated Survey qs = 1;
+message SurveyResponse {
+    google.protobuf.Timestamp start_survey = 1;
+    string  mesage = 2;
+    repeated Survey qs = 3;
 }
 
-message QuestionRespone {
+message QuestionResponse {
     uint64 user_id = 1;
     string question = 2;
     uint32 number = 3;
@@ -56,13 +61,12 @@ message StatusResponse {
 }
 
 service ICHSurvey {
-    rpc AddCandidate(AddUser) returns (StatusResponse) {}
-    rpc DeleteCandidate(User) returns (StatusResponse) {}
-    rpc UpdateCandidate(User) returns (StatusResponse) {}
+    rpc AddCandidate(UserInfoRequest) returns (StatusResponse) {}
+    rpc DeleteCandidate(UserIdRequest) returns (StatusResponse) {}
 
-    rpc StartSurvey(User) returns (QuestionRespone) {}
-    rpc SetAnswer(User) returns (QuestionRespone) {}
+    rpc StartSurvey(UserIdRequest) returns (QuestionResponse) {}
+    rpc SetAnswer(AnswerRequest) returns (QuestionResponse) {}
 
-    rpc GetStatusOfCandidate(User) returns (StatusResponse) {}
-    rpc GetSurveyForCandidate(User) returns (SurveyRespone) {}
+    rpc SetFinishCandidate(UserIdRequest) returns (StatusResponse) {}
+    rpc GetSurveyForCandidate(UserIdRequest) returns (SurveyResponse) {}
 } 

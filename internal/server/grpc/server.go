@@ -1,1 +1,138 @@
 package internalgrpc
+
+import (
+	"context"
+	"net"
+	"time"
+
+	"github.com/lixoi/survey/internal/app"
+	log "github.com/lixoi/survey/internal/logger"
+	"github.com/lixoi/survey/internal/server/grpc/api"
+	"github.com/lixoi/survey/internal/storage"
+	"google.golang.org/grpc"
+)
+
+type GRPCServer struct {
+	api.UnimplementedICHSurveyServer
+	strg app.Storage
+	logg log.Logger
+}
+
+func New(strg app.Storage, logg log.Logger) *GRPCServer {
+	return &GRPCServer{
+		strg: strg,
+		logg: logg,
+	}
+}
+
+func (s *GRPCServer) AddCandidate(ctx context.Context, req *api.UserInfoRequest) (*api.StatusResponse, error) {
+	existTo := time.Time{}
+	if req.ExistTo > 0 {
+		existTo = time.Now().AddDate(0, 0, int(req.ExistTo))
+	}
+	user := storage.User{
+		ID:            req.UserId,
+		BaseQ:         req.BaseQuestion.String(),
+		FirstProfileQ: req.FirstGuestion.String(),
+		SecProfileQ:   req.SecondGuestion.String(),
+		ExistTo:       existTo,
+	}
+	message := ""
+	err := s.strg.AddUser(ctx, user)
+	if err != nil {
+		message = err.Error()
+	}
+
+	return &api.StatusResponse{
+		Message: message,
+	}, err
+}
+
+func (s *GRPCServer) DeleteCandidate(ctx context.Context, req *api.UserIdRequest) (*api.StatusResponse, error) {
+	message := ""
+	err := s.strg.DeleteUser(ctx, req.UserId)
+	if err != nil {
+		message = err.Error()
+	}
+
+	return &api.StatusResponse{
+		Message: message,
+	}, err
+}
+
+func (s *GRPCServer) StartSurvey(ctx context.Context, req *api.UserIdRequest) (*api.QuestionResponse, error) {
+	res := &api.QuestionResponse{}
+	question, err := s.strg.StartSurveyFor(ctx, req.UserId)
+	if err != nil {
+		res.Message = err.Error()
+		res.Number = 0
+		res.Question = ""
+	} else {
+		res.Message = ""
+		res.Question = question.Question
+		res.Number = uint32(question.QuestionNumber)
+		res.UserId = uint64(question.ID)
+	}
+
+	return res, err
+}
+
+func (s *GRPCServer) SetAnswer(ctx context.Context, req *api.AnswerRequest) (*api.QuestionResponse, error) {
+	res := &api.QuestionResponse{}
+	nextQuestion, err := s.strg.SetAnswerFor(ctx, req.UserId, req.Number, req.Answer)
+	if err != nil {
+		res.Message = err.Error()
+		res.Number = 0
+		res.Question = ""
+	} else {
+		res.Message = ""
+		res.Question = nextQuestion.Question
+		res.Number = uint32(nextQuestion.QuestionNumber)
+		res.UserId = uint64(nextQuestion.ID)
+	}
+
+	return res, err
+}
+
+func (s *GRPCServer) SetFinishCandidate(ctx context.Context, req *api.UserIdRequest) (*api.StatusResponse, error) {
+	message := ""
+	err := s.strg.FinishSurveyFor(ctx, req.UserId)
+	if err != nil {
+		message = err.Error()
+	}
+
+	return &api.StatusResponse{
+		Message: message,
+	}, err
+}
+
+func (s *GRPCServer) GetSurveyForCandidate(ctx context.Context, req *api.UserIdRequest) (*api.SurveyResponse, error) {
+	res := &api.SurveyResponse{}
+	if qList, err := s.strg.GetSurveyFor(ctx, req.UserId); err != nil {
+		res.Mesage = err.Error()
+	} else {
+		res.Qs = marshalingList(qList)
+		res.Mesage = ""
+	}
+
+	return &api.SurveyResponse{}, err
+}
+
+func (s *GRPCServer) Start(port string) error {
+	l, err := net.Listen("tcp", ":"+port)
+	if err != nil {
+		s.logg.Error(err.Error())
+		return err
+	}
+	srv := grpc.NewServer(
+		grpc.ChainUnaryInterceptor(
+			UnaryServerRequestValidatorInterceptor(ValidateReq),
+		),
+	)
+	api.RegisterICHSurveyServer(srv, s)
+	return srv.Serve(l)
+}
+
+func marshalingList(qList []storage.Survey) []*api.Survey {
+
+}

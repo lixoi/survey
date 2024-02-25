@@ -87,7 +87,7 @@ func databaseTests(strq *sqlstorage.Storage) error {
 	c := context.Background()
 	strq.Connect(c)
 	user := storage.User{
-		ID: rand.Int63n(300),
+		ID: uint64(rand.Int63n(300)),
 	}
 	_ = user
 	strq.AddUser(c, user)
@@ -95,7 +95,7 @@ func databaseTests(strq *sqlstorage.Storage) error {
 	//strq.DeleteUser(284)
 	//strq.AddUser(user)
 	//strq.UpdateUser(284, true)
-	strq.GetSurveyForUser(c, 161)
+	//strq.GetSurveyForUser(c, 161)
 
 	return nil
 }

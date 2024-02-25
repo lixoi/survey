@@ -1,5 +1,5 @@
-BIN := "./bin/calendar"
-DOCKER_IMG="calendar:develop"
+BIN := "./bin/survey"
+DOCKER_IMG="survey:develop"
 
 GIT_HASH := $(shell git log --format="%h" -n 1)
 LDFLAGS := -X main.release="develop" -X main.buildDate=$(shell date -u +%Y-%m-%dT%H:%M:%S) -X main.gitHash=$(GIT_HASH)
@@ -11,7 +11,7 @@ gen:
 	protoc --go_out=./internal/server/grpc/api api/*.proto
 
 build:
-	go build -v -o $(BIN) -ldflags "$(LDFLAGS)" ./cmd/calendar
+	go build -v -o $(BIN) -ldflags "$(LDFLAGS)" ./cmd/survey
 
 run: build
 	$(BIN) -config ./configs/config.toml
