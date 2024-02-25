@@ -38,9 +38,9 @@ message Survey {
     uint64 user_id = 1;
     string title = 2;
     string question = 3;
-    uint64 latency = 4;
+    string latency = 4;
     string answer = 5;
-    string number = 6;
+    uint32 number = 6;
 }
 
 message SurveyResponse {

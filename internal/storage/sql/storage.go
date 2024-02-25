@@ -212,27 +212,6 @@ func (s *Storage) addSurvey(ctx context.Context, user storage.User, questions []
 	return nil
 }
 
-// завершение опроса, установка флага окончания опроса в параметрах пользователя
-func (s *Storage) FinishSurveyFor(ctx context.Context, userId uint64) error {
-	row := s.db.QueryRowxContext(ctx, `
-		SELECT id FROM users WHERE id = $1 LIMIT 1
-	`, strconv.FormatUint(userId, 10))
-
-	var id uint64
-	if err := row.Scan(&id); err == sql.ErrNoRows {
-		s.logg.Error("Not user " + strconv.FormatUint(userId, 10) + " in users table: " + err.Error())
-		return fmt.Errorf("not user in DB")
-	}
-	query := `UPDATE users SET survey_done = true WHERE id= $2`
-	_, err := s.db.ExecContext(ctx, query, id)
-	if err != nil {
-		s.logg.Error("Not update user " + strconv.FormatUint(id, 10) + " : " + err.Error())
-		return fmt.Errorf("not update user")
-	}
-
-	return nil
-}
-
 // удаление пользователя из БД
 func (s *Storage) DeleteUser(ctx context.Context, userId uint64) error {
 	row := s.db.QueryRowxContext(ctx, `
@@ -269,6 +248,27 @@ func (s *Storage) deleteSurveyFor(ctx context.Context, userId uint64) error {
 	if _, err := s.db.ExecContext(ctx, `DELETE FROM survey WHERE user_id = $1`, userId); err != nil {
 		s.logg.Error("Not delete surveys for user " + strconv.FormatUint(userId, 10) + " : " + err.Error())
 		return fmt.Errorf("not delete surveys for user in DB")
+	}
+
+	return nil
+}
+
+// завершение опроса, установка флага окончания опроса в параметрах пользователя
+func (s *Storage) FinishSurveyFor(ctx context.Context, userId uint64) error {
+	row := s.db.QueryRowxContext(ctx, `
+		SELECT id FROM users WHERE id = $1 LIMIT 1
+	`, strconv.FormatUint(userId, 10))
+
+	var id uint64
+	if err := row.Scan(&id); err == sql.ErrNoRows {
+		s.logg.Error("Not user " + strconv.FormatUint(userId, 10) + " in users table: " + err.Error())
+		return fmt.Errorf("not user in DB")
+	}
+	query := `UPDATE users SET survey_done = true WHERE id= $2`
+	_, err := s.db.ExecContext(ctx, query, id)
+	if err != nil {
+		s.logg.Error("Not update user " + strconv.FormatUint(id, 10) + " : " + err.Error())
+		return fmt.Errorf("not update user")
 	}
 
 	return nil
@@ -366,6 +366,16 @@ func (s *Storage) GetSurveyFor(ctx context.Context, userId uint64) ([]storage.Su
 		return nil, errors.New("not select survey for user")
 	}
 
+	return res, nil
+}
+
+func (s *Storage) GetInfoFor(ctx context.Context, userId uint64) (*storage.User, error) {
+	res := &storage.User{}
+	query := `SELECT * FROM users WHERE id = $1 LIMIT 1`
+	if err := s.db.SelectContext(ctx, res, query, userId); err != nil {
+		s.logg.Info("Not question with id " + strconv.FormatUint(userId, 10))
+		return nil, err
+	}
 	return res, nil
 }
 

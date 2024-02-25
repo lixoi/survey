@@ -4,7 +4,7 @@ import "time"
 
 type Survey struct {
 	ID             uint64
-	UserID         string `db:"user_id"`
+	UserID         uint64 `db:"user_id"`
 	Title          string
 	Question       string `db:"question"`
 	Answer         string

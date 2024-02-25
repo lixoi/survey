@@ -37,6 +37,7 @@ type Storage interface { // TODO
 	StartSurveyFor(ctx context.Context, userId uint64) (*storage.Survey, error)
 	SetAnswerFor(ctx context.Context, userId uint64, index uint32, answer string) (*storage.Survey, error)
 	GetSurveyFor(ctx context.Context, userId uint64) ([]storage.Survey, error)
+	GetInfoFor(ctx context.Context, userId uint64) (*storage.User, error)
 	// isSurveyStartedFor(ctx context.Context, userId int64) bool
 	// isExistQuestionFor(ctx context.Context, userId int64, index int64) int64
 }

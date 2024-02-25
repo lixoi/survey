@@ -2,6 +2,7 @@ package internalgrpc
 
 import (
 	"context"
+	"errors"
 	"net"
 	"time"
 
@@ -108,14 +109,19 @@ func (s *GRPCServer) SetFinishCandidate(ctx context.Context, req *api.UserIdRequ
 
 func (s *GRPCServer) GetSurveyForCandidate(ctx context.Context, req *api.UserIdRequest) (*api.SurveyResponse, error) {
 	res := &api.SurveyResponse{}
-	if qList, err := s.strg.GetSurveyFor(ctx, req.UserId); err != nil {
+	qList, err := s.strg.GetSurveyFor(ctx, req.UserId)
+	if err != nil {
 		res.Mesage = err.Error()
-	} else {
-		res.Qs = marshalingList(qList)
-		res.Mesage = ""
+		return res, err
 	}
+	if len(qList) == 0 {
+		res.Mesage = "Not questions for user"
+		return res, errors.New(res.Mesage)
+	}
+	res.Qs = s.marshalingList(ctx, qList)
+	res.Mesage = ""
 
-	return &api.SurveyResponse{}, err
+	return res, nil
 }
 
 func (s *GRPCServer) Start(port string) error {
@@ -133,6 +139,24 @@ func (s *GRPCServer) Start(port string) error {
 	return srv.Serve(l)
 }
 
-func marshalingList(qList []storage.Survey) []*api.Survey {
+func (s *GRPCServer) marshalingList(ctx context.Context, qList []storage.Survey) (res []*api.Survey) {
+	usr, err := s.strg.GetInfoFor(ctx, qList[0].UserID)
+	if err != nil {
+		return
+	}
+	beforeTime := usr.SurveyStart
+	for _, v := range qList {
+		s := &api.Survey{
+			UserId:   v.UserID,
+			Title:    v.Title,
+			Question: v.Question,
+			Answer:   v.Answer,
+			Number:   v.QuestionNumber,
+			Latency:  v.AnsweredAt.Sub(beforeTime).String(),
+		}
+		res = append(res, s)
+		beforeTime = v.AnsweredAt
+	}
 
+	return res
 }
