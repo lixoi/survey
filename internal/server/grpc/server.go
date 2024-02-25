@@ -71,8 +71,8 @@ func (s *GRPCServer) StartSurvey(ctx context.Context, req *api.UserIdRequest) (*
 	} else {
 		res.Message = ""
 		res.Question = question.Question
-		res.Number = uint32(question.QuestionNumber)
-		res.UserId = uint64(question.ID)
+		res.Number = question.QuestionNumber
+		res.UserId = question.ID
 	}
 
 	return res, err
@@ -88,8 +88,8 @@ func (s *GRPCServer) SetAnswer(ctx context.Context, req *api.AnswerRequest) (*ap
 	} else {
 		res.Message = ""
 		res.Question = nextQuestion.Question
-		res.Number = uint32(nextQuestion.QuestionNumber)
-		res.UserId = uint64(nextQuestion.ID)
+		res.Number = nextQuestion.QuestionNumber
+		res.UserId = nextQuestion.ID
 	}
 
 	return res, err
