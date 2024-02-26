@@ -11,6 +11,7 @@ import (
 	"github.com/lixoi/survey/internal/server/grpc/api"
 	"github.com/lixoi/survey/internal/storage"
 	"google.golang.org/grpc"
+	"google.golang.org/grpc/reflection"
 )
 
 type GRPCServer struct {
@@ -136,6 +137,8 @@ func (s *GRPCServer) Start(port string) error {
 		),
 	)
 	api.RegisterICHSurveyServer(srv, s)
+	reflection.Register(srv)
+
 	return srv.Serve(l)
 }
 
