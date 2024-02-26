@@ -8,8 +8,8 @@ type Survey struct {
 	Title          string
 	Question       string `db:"question"`
 	Answer         string
-	AnsweredAt     time.Time `db:"answered_at"`
-	QuestionNumber uint32    `db:"question_number"`
+	AnsweredAt     *time.Time `db:"answered_at"`
+	QuestionNumber uint32     `db:"question_number"`
 }
 
 type User struct {

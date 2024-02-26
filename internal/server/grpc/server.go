@@ -144,15 +144,19 @@ func (s *GRPCServer) marshalingList(ctx context.Context, qList []storage.Survey)
 	if err != nil {
 		return
 	}
-	beforeTime := usr.SurveyStart
+	beforeTime := &usr.SurveyStart
 	for _, v := range qList {
+		latency := "not time"
+		if v.AnsweredAt != nil && beforeTime != nil {
+			latency = (*v.AnsweredAt).Sub(*beforeTime).String()
+		}
 		s := &api.Survey{
 			UserId:   v.UserID,
 			Title:    v.Title,
 			Question: v.Question,
 			Answer:   v.Answer,
 			Number:   v.QuestionNumber,
-			Latency:  v.AnsweredAt.Sub(beforeTime).String(),
+			Latency:  latency,
 		}
 		res = append(res, s)
 		beforeTime = v.AnsweredAt

@@ -9,8 +9,8 @@
     "PSQL": {
         "DNS": "localhost",
         "Port": "5432",
-        "User": "usr",
-        "Pass": "calendar",
-        "DB": "calendar"
+        "User": "test",
+        "Pass": "test",
+        "DB": "survey"
     }
 }

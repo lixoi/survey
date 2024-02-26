@@ -23,7 +23,7 @@ type Logger interface {
 }
 
 type Storage interface { // TODO
-	Connect(c context.Context) error
+	//Connect(c context.Context) error
 	Create(c context.Context) error
 	Close(c context.Context) error
 	//
@@ -31,9 +31,9 @@ type Storage interface { // TODO
 	// getQuestions(table string, size int)
 	// getQuestion(id int64, table string)
 	// addSurvey(user storage.User, questions []storage.Question)
-	FinishSurveyFor(ctx context.Context, userId uint64) error
 	DeleteUser(ctx context.Context, userId uint64) error
 	// deleteSurveyFor(ctx context.Context, userId int64) error
+	FinishSurveyFor(ctx context.Context, userId uint64) error
 	StartSurveyFor(ctx context.Context, userId uint64) (*storage.Survey, error)
 	SetAnswerFor(ctx context.Context, userId uint64, index uint32, answer string) (*storage.Survey, error)
 	GetSurveyFor(ctx context.Context, userId uint64) ([]storage.Survey, error)

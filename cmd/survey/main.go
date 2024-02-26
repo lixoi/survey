@@ -13,6 +13,8 @@ import (
 	"github.com/lixoi/survey/internal/app"
 	config "github.com/lixoi/survey/internal/config"
 	"github.com/lixoi/survey/internal/logger"
+
+	internalgrpc "github.com/lixoi/survey/internal/server/grpc"
 	internalhttp "github.com/lixoi/survey/internal/server/http"
 	storage "github.com/lixoi/survey/internal/storage"
 	sqlstorage "github.com/lixoi/survey/internal/storage/sql"
@@ -51,13 +53,16 @@ func main() {
 	strg := sqlstorage.New(config, *logg)
 	survey := app.New(logg, strg)
 
-	databaseTests(strg)
+	// databaseTests(strg)
 
 	server := internalhttp.NewServer(logg, *survey)
-
 	ctx, cancel := signal.NotifyContext(context.Background(),
 		syscall.SIGINT, syscall.SIGTERM, syscall.SIGHUP)
 	defer cancel()
+
+	// start grpc server
+	grpcServer := internalgrpc.New(strg, *logg)
+	grpcServer.Start("50051")
 
 	go func() {
 		<-ctx.Done()
@@ -70,7 +75,7 @@ func main() {
 		}
 	}()
 
-	if err = strg.Connect(ctx); err != nil {
+	if err = strg.Create(ctx); err != nil {
 		return
 	}
 
@@ -85,14 +90,19 @@ func main() {
 
 func databaseTests(strq *sqlstorage.Storage) error {
 	c := context.Background()
-	strq.Connect(c)
+	strq.Create(c)
 	user := storage.User{
-		ID: uint64(rand.Int63n(300)),
+		ID: uint64(rand.Int63n(30000)),
 	}
 	_ = user
-	strq.AddUser(c, user)
+	//strq.AddUser(c, user)
+	//strq.StartSurveyFor(c, 2369)
+	strq.SetAnswerFor(c, 2369, 2, "answer")
+	strq.FinishSurveyFor(c, 2369)
+	strq.GetInfoFor(c, 2369)
+	strq.GetSurveyFor(c, 2369)
 	//strq.UpdateSurvey(255, 2, "answer")
-	//strq.DeleteUser(284)
+	strq.DeleteUser(c, 2369)
 	//strq.AddUser(user)
 	//strq.UpdateUser(284, true)
 	//strq.GetSurveyForUser(c, 161)
