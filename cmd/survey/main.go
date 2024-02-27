@@ -55,14 +55,12 @@ func main() {
 
 	// databaseTests(strg)
 
-	server := internalhttp.NewServer(logg, *survey)
 	ctx, cancel := signal.NotifyContext(context.Background(),
 		syscall.SIGINT, syscall.SIGTERM, syscall.SIGHUP)
 	defer cancel()
 
-	// start grpc server
 	grpcServer := internalgrpc.New(strg, *logg)
-	grpcServer.Start("50051")
+	httpServer := internalhttp.NewServer(logg, *survey)
 
 	go func() {
 		<-ctx.Done()
@@ -70,7 +68,7 @@ func main() {
 		ctx, cancel := context.WithTimeout(context.Background(), time.Second*3)
 		defer cancel()
 
-		if err := server.Stop(ctx); err != nil {
+		if err := httpServer.Stop(ctx); err != nil {
 			logg.Error("failed to stop http server: " + err.Error())
 		}
 	}()
@@ -81,7 +79,13 @@ func main() {
 
 	logg.Info("calendar is running...")
 
-	if err := server.Start(ctx); err != nil {
+	if err := grpcServer.Start(ctx, "50051"); err != nil {
+		logg.Error("failed to start http server: " + err.Error())
+		cancel()
+		os.Exit(1) //nolint:gocritic
+	}
+
+	if err := httpServer.Start(ctx); err != nil {
 		logg.Error("failed to start http server: " + err.Error())
 		cancel()
 		os.Exit(1) //nolint:gocritic

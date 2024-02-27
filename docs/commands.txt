@@ -22,3 +22,17 @@ docker exec -it pg psql -Upostgres -dsurveys
 >docker exec -it pg psql -Utest -dsurveys
 # вывод всех таблиц в БД
 >select * from pg_catalog.pg_tables where schemaname='public';
+
+# интеграционные тесты
+#  DeleteCandidate
+grpcurl -plaintext -d '{"user_id": 9139}' 127.0.0.1:50051 api.ICHSurvey/DeleteCandidate
+#  AddCandidate
+grpcurl -plaintext -d '{"user_id": 12345, "first_guestion": 1, "second_guestion": 3}' 127.0.0.1:50051 api.ICHSurvey/AddCandidate
+#  StartSurvey
+grpcurl -plaintext -d '{"user_id": 12345}' 127.0.0.1:50051 api.ICHSurvey/StartSurvey
+#  SetAnswer
+grpcurl -plaintext -d '{"user_id": 12345, "answer": "answer 2", "number": 2}' 127.0.0.1:50051 api.ICHSurvey/SetAnswer
+#  SetFinishCandidate
+grpcurl -plaintext -d '{"user_id": 12345}' 127.0.0.1:50051 api.ICHSurvey/SetFinishCandidate
+#  GetSurveyForCandidate
+grpcurl -plaintext -d '{"user_id": 12345}' 127.0.0.1:50051 api.ICHSurvey/GetSurveyForCandidate

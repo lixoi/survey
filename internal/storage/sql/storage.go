@@ -14,14 +14,12 @@ import (
 
 	config "github.com/lixoi/survey/internal/config"
 	log "github.com/lixoi/survey/internal/logger"
+	api "github.com/lixoi/survey/internal/server/grpc/api"
 	storage "github.com/lixoi/survey/internal/storage"
 )
 
 const (
-	MAX_QUESTIONS     = 4
-	BASE_CLASS        = "security_questions"
-	PROFILE_CLASS_ONE = "linux_questions"
-	PROFILE_CLASS_TWO = "network_questions"
+	MAX_QUESTIONS = 4
 )
 
 type Storage struct { // TODO
@@ -53,27 +51,11 @@ func New(dbparams config.Config, logg log.Logger) *Storage {
 	}
 }
 
-/*
-func (s *Storage) Connect(ctx context.Context) (err error) {
-	s.db, err = sqlx.Open("pgx", s.connectParams)
-	if err != nil {
-		s.logg.Error("cannot open pgx driver: " + err.Error())
-		return errors.New("Error conneect to DB")
-	}
-
-	if err = s.db.PingContext(ctx); err != nil {
-		s.logg.Error("cannot ping to DB")
-	}
-
-	return nil
-}
-*/
-
 func (s *Storage) Create(ctx context.Context) (err error) {
 	s.db, err = sqlx.Open("pgx", s.connectParams)
 	if err != nil {
 		s.logg.Error("cannot open pgx driver: " + err.Error())
-		return errors.New("Error conneect to DB")
+		return errors.New("error conneect to DB")
 	}
 
 	if err = s.db.PingContext(ctx); err != nil {
@@ -89,23 +71,23 @@ func (s *Storage) Close(ctx context.Context) error {
 // добавление пользователя в БД, автоматическое формирование опросного листа в БД
 func (s *Storage) AddUser(ctx context.Context, user storage.User) error {
 	// проверка, что пользотавеля с идентификатором нет в БД
-	row := s.db.QueryRowxContext(ctx, `
-		SELECT id FROM users WHERE id = $1 LIMIT 1
-	`, strconv.FormatUint(user.ID, 10))
+	row := s.db.QueryRowxContext(ctx, `SELECT id FROM users WHERE id = $1 LIMIT 1`,
+		strconv.FormatUint(user.ID, 10))
 
 	var id uint64
-	if err := row.Scan(&id); err == nil {
+	if err := row.Scan(&id); err == nil && id > 0 {
 		s.logg.Error("User " + strconv.FormatUint(user.ID, 10) + " already exists in DB")
-		return errors.New("This user already exists in DB")
+		return errors.New("this user already exists in DB")
 	}
-	if user.BaseQ == "" {
-		user.BaseQ = BASE_CLASS
+	uknown := api.ClassQuestions_name[int32(api.ClassQuestions_UNKNOWN_QUESTIONS_CLASS)]
+	if user.BaseQ == uknown {
+		user.BaseQ = api.ClassQuestions_name[int32(api.ClassQuestions_SECURITY_QUESTIONS)]
 	}
-	if user.FirstProfileQ == "" {
-		user.FirstProfileQ = PROFILE_CLASS_ONE
+	if user.FirstProfileQ == uknown {
+		user.FirstProfileQ = api.ClassQuestions_name[int32(api.ClassQuestions_LINUX_QUESTIONS)]
 	}
-	if user.SecProfileQ == "" {
-		user.SecProfileQ = PROFILE_CLASS_TWO
+	if user.SecProfileQ == uknown {
+		user.SecProfileQ = api.ClassQuestions_name[int32(api.ClassQuestions_NETWORK_QUESTIONS)]
 	}
 	type table struct {
 		name string
@@ -120,12 +102,12 @@ func (s *Storage) AddUser(ctx context.Context, user storage.User) error {
 		questions := s.getQuestions(ctx, t.name, t.size)
 		if questions == nil {
 			s.logg.Error("AddUser " + strconv.FormatUint(user.ID, 10) + ": Not questions " + t.name)
-			return fmt.Errorf("Not questions in %s", t.name)
+			return fmt.Errorf("not questions in %s", t.name)
 		}
 		// запись полученного рандомного списка в БД
 		if err := s.addSurvey(ctx, user, questions, index); err != nil {
 			s.logg.Error("Not add survey for " + strconv.FormatUint(user.ID, 10) + ": " + err.Error())
-			return fmt.Errorf("Not add survey")
+			return fmt.Errorf("not add survey")
 		}
 		index += len(questions)
 	}
@@ -147,8 +129,8 @@ func (s *Storage) AddUser(ctx context.Context, user storage.User) error {
 	})
 
 	if err != nil {
-		s.logg.Error("Not add user " + strconv.FormatUint(user.ID, 10) + "to users table: " + err.Error())
-		return fmt.Errorf("Not add user")
+		s.logg.Error("Not add user " + strconv.FormatUint(user.ID, 10) + " to users table: " + err.Error())
+		return fmt.Errorf("not add user")
 	}
 
 	return nil
@@ -205,7 +187,7 @@ func (s *Storage) addSurvey(ctx context.Context, user storage.User, questions []
 			"question_number": index + i,
 		}); err != nil {
 			s.logg.Error("Not insert question in table survey: " + err.Error())
-			return fmt.Errorf("Not insert question in table survey")
+			return fmt.Errorf("not insert question in table survey")
 		}
 
 	}
@@ -221,12 +203,12 @@ func (s *Storage) DeleteUser(ctx context.Context, userId uint64) error {
 	var id uint64
 	if err := row.Scan(&id); err == sql.ErrNoRows {
 		s.logg.Error("Not user " + strconv.FormatUint(userId, 10) + " in users table: " + err.Error())
-		return fmt.Errorf("User is not exist in DB")
+		return fmt.Errorf("user is not exist in DB")
 	}
 
 	if _, err := s.db.ExecContext(ctx, `DELETE FROM users WHERE id = $1`, userId); err != nil {
 		s.logg.Error("Not delete user " + strconv.FormatUint(userId, 10) + " : " + err.Error())
-		return fmt.Errorf("Not delete user")
+		return fmt.Errorf("not delete user")
 	}
 
 	// удаление всех вопросов, привязаннывх к пользователю
@@ -237,17 +219,17 @@ func (s *Storage) deleteSurveyFor(ctx context.Context, userId uint64) error {
 	surveyUserId := []uint64{}
 	if err := s.db.SelectContext(ctx, &surveyUserId, `SELECT id FROM survey WHERE user_id = $1`, userId); err != nil {
 		s.logg.Error("Not select surveys for user " + strconv.FormatUint(userId, 10) + " : " + err.Error())
-		return fmt.Errorf("Not select survey for user")
+		return fmt.Errorf("not select survey for user")
 	}
 
 	if len(surveyUserId) == 0 {
 		s.logg.Wirning("Not surveys for user " + strconv.FormatUint(userId, 10) + " in DB")
-		return fmt.Errorf("Not surveys for user in DB")
+		return fmt.Errorf("not surveys for user in DB")
 	}
 
 	if _, err := s.db.ExecContext(ctx, `DELETE FROM survey WHERE user_id = $1`, userId); err != nil {
 		s.logg.Error("Not delete surveys for user " + strconv.FormatUint(userId, 10) + " : " + err.Error())
-		return fmt.Errorf("Not delete surveys for user in DB")
+		return fmt.Errorf("not delete surveys for user in DB")
 	}
 
 	return nil
@@ -262,13 +244,13 @@ func (s *Storage) FinishSurveyFor(ctx context.Context, userId uint64) error {
 	var id uint64
 	if err := row.Scan(&id); err == sql.ErrNoRows {
 		s.logg.Error("Not user " + strconv.FormatUint(userId, 10) + " in users table: " + err.Error())
-		return fmt.Errorf("Not user in DB")
+		return fmt.Errorf("not user in DB")
 	}
 	query := `UPDATE users SET survey_done = true WHERE id= $1`
 	_, err := s.db.ExecContext(ctx, query, id)
 	if err != nil {
 		s.logg.Error("Not update user " + strconv.FormatUint(id, 10) + " : " + err.Error())
-		return fmt.Errorf("Not update user")
+		return fmt.Errorf("not update user")
 	}
 
 	return nil
@@ -279,12 +261,12 @@ func (s *Storage) FinishSurveyFor(ctx context.Context, userId uint64) error {
 func (s *Storage) StartSurveyFor(ctx context.Context, userId uint64) (*storage.Survey, error) {
 	// если пользователь уже проходил опрос, то возвращается ошибка
 	if s.isSurveyStartedFor(ctx, userId) {
-		return nil, fmt.Errorf("Survey is already started or finished for user %d", userId)
+		return nil, fmt.Errorf("survey is already started or finished for user %d", userId)
 	}
 	// если первого вопроса нет или на вопрос уже был дан ответ, то возвращается ошибка
 	id := s.isExistQuestionFor(ctx, userId, 1)
 	if id == 0 {
-		return nil, fmt.Errorf("Survey is finished")
+		return nil, fmt.Errorf("survey is finished")
 	}
 	// чтение первого вопроса из БД
 	res := s.getNextQuestion(ctx, id)
@@ -305,7 +287,7 @@ func (s *Storage) SetAnswerFor(ctx context.Context, userId uint64, index uint32,
 	id := s.isExistQuestionFor(ctx, userId, index)
 	if id == 0 {
 		return nil,
-			fmt.Errorf("Question whith index %d is not exist in DB or you have alraedy answered it", index)
+			fmt.Errorf("question whith index %d is not exist in DB or you have alraedy answered it", index)
 	}
 	// запись ответа в БД
 	query := `
@@ -328,7 +310,7 @@ func (s *Storage) SetAnswerFor(ctx context.Context, userId uint64, index uint32,
 	// проверка наличия следующего вопроса
 	id = s.isExistQuestionFor(ctx, userId, index+1)
 	if id == 0 {
-		return nil, fmt.Errorf("Survey is finished")
+		return nil, fmt.Errorf("survey is finished")
 	}
 	// чтение следующего вопроса из БД
 	res := s.getNextQuestion(ctx, id)
@@ -352,18 +334,18 @@ func (s *Storage) GetSurveyFor(ctx context.Context, userId uint64) ([]storage.Su
 	// проверка наличия пользователя в БД
 	if err == sql.ErrNoRows {
 		s.logg.Error("There is not user " + strconv.FormatUint(userId, 10) + " in DB")
-		return nil, errors.New("There is not user in DB")
+		return nil, errors.New("there is not user in DB")
 	}
 	// проверка прохождения опроса пользователем
-	if done == false {
+	if !done {
 		s.logg.Info("User " + strconv.FormatUint(userId, 10) + " have not passed survey yet")
-		return nil, errors.New("User have not passed survey yet")
+		return nil, errors.New("user have not passed survey yet")
 	}
 	var res []storage.Survey
 	query := `SELECT * FROM survey WHERE user_id = $1`
 	if err := s.db.SelectContext(ctx, &res, query, userId); err != nil {
 		s.logg.Error("Not select survey for user " + strconv.FormatUint(userId, 10))
-		return nil, errors.New("Not select survey for user")
+		return nil, errors.New("not select survey for user")
 	}
 
 	return res, nil
@@ -371,6 +353,7 @@ func (s *Storage) GetSurveyFor(ctx context.Context, userId uint64) ([]storage.Su
 
 func (s *Storage) GetInfoFor(ctx context.Context, userId uint64) (*storage.User, error) {
 	res := []*storage.User{}
+	//var baseQuestions []string
 	query := `SELECT * FROM users WHERE id = $1 LIMIT 1`
 	if err := s.db.SelectContext(ctx, &res, query, userId); err != nil || len(res) != 1 {
 		s.logg.Error("Not question with id " + strconv.FormatUint(userId, 10))

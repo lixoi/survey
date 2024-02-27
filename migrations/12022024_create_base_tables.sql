@@ -1,11 +1,11 @@
 -- +goose Down
  CREATE TYPE question_table AS ENUM (
- 'linux_questions', 
- 'k8s_questions', 
- 'network_questions',
- 'security_questions',
- 'container_questions',
- 'developer_questions'
+ 'LINUX_QUESTIONS', 
+ 'K8S_QUESTIONS', 
+ 'NETWORK_QUESTIONS',
+ 'SECURITY_QUESTIONS',
+ 'CONTAINER_QUESTIONS',
+ 'DEVELOPER_UESTIONS'
  );
 
 CREATE table survey (

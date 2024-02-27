@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"net"
+	"sort"
 	"time"
 
 	"github.com/lixoi/survey/internal/app"
@@ -73,7 +74,7 @@ func (s *GRPCServer) StartSurvey(ctx context.Context, req *api.UserIdRequest) (*
 		res.Message = ""
 		res.Question = question.Question
 		res.Number = question.QuestionNumber
-		res.UserId = question.ID
+		res.UserId = question.UserID
 	}
 
 	return res, err
@@ -125,12 +126,15 @@ func (s *GRPCServer) GetSurveyForCandidate(ctx context.Context, req *api.UserIdR
 	return res, nil
 }
 
-func (s *GRPCServer) Start(port string) error {
+func (s *GRPCServer) Start(ctx context.Context, port string) error {
 	l, err := net.Listen("tcp", ":"+port)
 	if err != nil {
 		s.logg.Error(err.Error())
 		return err
 	}
+
+	defer s.Stop(ctx)
+
 	srv := grpc.NewServer(
 		grpc.ChainUnaryInterceptor(
 			UnaryServerRequestValidatorInterceptor(ValidateReq),
@@ -142,11 +146,19 @@ func (s *GRPCServer) Start(port string) error {
 	return srv.Serve(l)
 }
 
+func (s *GRPCServer) Stop(ctx context.Context) error {
+	<-ctx.Done()
+	return nil
+}
+
 func (s *GRPCServer) marshalingList(ctx context.Context, qList []storage.Survey) (res []*api.Survey) {
 	usr, err := s.strg.GetInfoFor(ctx, qList[0].UserID)
 	if err != nil {
 		return
 	}
+	sort.Slice(qList, func(i, j int) bool {
+		return qList[i].QuestionNumber < qList[j].QuestionNumber
+	})
 	beforeTime := &usr.SurveyStart
 	for _, v := range qList {
 		latency := "not time"
