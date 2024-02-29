@@ -25,7 +25,7 @@ docker exec -it pg psql -Upostgres -dsurveys
 
 # интеграционные тесты
 #  DeleteCandidate
-grpcurl -plaintext -d '{"user_id": 9139}' 127.0.0.1:50051 api.ICHSurvey/DeleteCandidate
+grpcurl -plaintext -d '{"user_id": 12345}' 127.0.0.1:50051 api.ICHSurvey/DeleteCandidate
 #  AddCandidate
 grpcurl -plaintext -d '{"user_id": 12345, "first_guestion": 1, "second_guestion": 3}' 127.0.0.1:50051 api.ICHSurvey/AddCandidate
 #  StartSurvey
@@ -36,3 +36,19 @@ grpcurl -plaintext -d '{"user_id": 12345, "answer": "answer 2", "number": 2}' 12
 grpcurl -plaintext -d '{"user_id": 12345}' 127.0.0.1:50051 api.ICHSurvey/SetFinishCandidate
 #  GetSurveyForCandidate
 grpcurl -plaintext -d '{"user_id": 12345}' 127.0.0.1:50051 api.ICHSurvey/GetSurveyForCandidate
+
+curl -H "Content-Type: application/json" -X GET http://localhost:8080/v1/start_survey/12345
+curl -d '{"answer":"answer", "number":1}'  -H "Content-Type: application/json" -X POST http://localhost:8080/v1/set_answer/12345
+
+
+###
+# задание параметров запуска контейнера swagger
+docker pull quay.io/goswagger/swagger
+alias swagger='docker run --rm -it -p 8081:8080 --user $(id -u):$(id -g) -e GOPATH=$(go env GOPATH):/go -v $HOME:$HOME -w $(pwd) quay.io/goswagger/swagger'
+# генерация кода swagger-сервера
+swagger generate server -f swagger/api/api.swagger.json -A swagger
+go mod tidy
+# запуск сервера swagger
+env PORT=8081 go run cmd/swagger-server/main.go
+# хапуск документации swagger
+swagger serve --no-open -p 8080 swagger/api/api.swagger.json

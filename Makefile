@@ -8,7 +8,11 @@ gen:
 	rm -f ./internal/server/grpc/api/api.pb.go
 	rm -f ./internal/server/grpc/api/api_grpc.pb.go
 	protoc --go-grpc_out=./internal/server/grpc/api api/*.proto
-	protoc --go_out=./internal/server/grpc/api api/*.proto
+	protoc --go_out=./internal/server/grpc/api \
+		--grpc-gateway_out=./internal/server/grpc/api \
+		--openapiv2_out ./swagger/ \
+		api/*.proto
+	# --grpc-gateway_opt generate_unbound_methods=true - включение не аннотированных методов 
 
 build:
 	go build -v -o $(BIN) -ldflags "$(LDFLAGS)" ./cmd/survey

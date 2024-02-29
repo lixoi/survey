@@ -5,6 +5,7 @@ package api;
 option go_package = "./;api";
 
 import "google/protobuf/timestamp.proto";
+import "google/api/annotations.proto";
 
 enum ClassQuestions {
     UNKNOWN_QUESTIONS_CLASS = 0;
@@ -64,8 +65,17 @@ service ICHSurvey {
     rpc AddCandidate(UserInfoRequest) returns (StatusResponse) {}
     rpc DeleteCandidate(UserIdRequest) returns (StatusResponse) {}
 
-    rpc StartSurvey(UserIdRequest) returns (QuestionResponse) {}
-    rpc SetAnswer(AnswerRequest) returns (QuestionResponse) {}
+    rpc StartSurvey(UserIdRequest) returns (QuestionResponse) {
+        option (google.api.http) = {
+            get: "/v1/start_survey/{user_id}"
+        };
+    }
+    rpc SetAnswer(AnswerRequest) returns (QuestionResponse) {
+        option (google.api.http) = {
+            post: "/v1/set_answer/{user_id}"
+            body: "*"
+        };
+    }
 
     rpc SetFinishCandidate(UserIdRequest) returns (StatusResponse) {}
     rpc GetSurveyForCandidate(UserIdRequest) returns (SurveyResponse) {}

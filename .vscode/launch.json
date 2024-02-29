@@ -10,7 +10,7 @@
             "request": "launch",
             "mode": "auto",
             "program": "${fileDirname}",
-            "args": ["--config=${fileDirname}/../../configs/config.json", "--migration="]
+            "args": ["--config=${fileDirname}/config.json", "--migration="]
         }
     ]
 }

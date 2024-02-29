@@ -91,7 +91,7 @@ func (s *GRPCServer) SetAnswer(ctx context.Context, req *api.AnswerRequest) (*ap
 		res.Message = ""
 		res.Question = nextQuestion.Question
 		res.Number = nextQuestion.QuestionNumber
-		res.UserId = nextQuestion.ID
+		res.UserId = nextQuestion.UserID
 	}
 
 	return res, err

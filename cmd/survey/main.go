@@ -79,11 +79,13 @@ func main() {
 
 	logg.Info("calendar is running...")
 
-	if err := grpcServer.Start(ctx, "50051"); err != nil {
-		logg.Error("failed to start http server: " + err.Error())
-		cancel()
-		os.Exit(1) //nolint:gocritic
-	}
+	go func() {
+		if err := grpcServer.Start(ctx, "50051"); err != nil {
+			logg.Error("failed to start http server: " + err.Error())
+			cancel()
+			os.Exit(1) //nolint:gocritic
+		}
+	}()
 
 	if err := httpServer.Start(ctx); err != nil {
 		logg.Error("failed to start http server: " + err.Error())

@@ -306,7 +306,6 @@ func (s *Storage) SetAnswerFor(ctx context.Context, userId uint64, index uint32,
 			" is not updated in DB: " + err.Error())
 		return nil, err
 	}
-
 	// проверка наличия следующего вопроса
 	id = s.isExistQuestionFor(ctx, userId, index+1)
 	if id == 0 {

@@ -1,0 +1,216 @@
+{
+  "swagger": "2.0",
+  "info": {
+    "title": "api/api.proto",
+    "version": "version not set"
+  },
+  "tags": [
+    {
+      "name": "ICHSurvey"
+    }
+  ],
+  "consumes": [
+    "application/json"
+  ],
+  "produces": [
+    "application/json"
+  ],
+  "paths": {
+    "/v1/set_answer/{userId}": {
+      "post": {
+        "operationId": "ICHSurvey_SetAnswer",
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "schema": {
+              "$ref": "#/definitions/apiQuestionResponse"
+            }
+          },
+          "default": {
+            "description": "An unexpected error response.",
+            "schema": {
+              "$ref": "#/definitions/rpcStatus"
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "userId",
+            "in": "path",
+            "required": true,
+            "type": "string",
+            "format": "uint64"
+          },
+          {
+            "name": "body",
+            "in": "body",
+            "required": true,
+            "schema": {
+              "$ref": "#/definitions/ICHSurveySetAnswerBody"
+            }
+          }
+        ],
+        "tags": [
+          "ICHSurvey"
+        ]
+      }
+    },
+    "/v1/start_survey/{userId}": {
+      "get": {
+        "operationId": "ICHSurvey_StartSurvey",
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "schema": {
+              "$ref": "#/definitions/apiQuestionResponse"
+            }
+          },
+          "default": {
+            "description": "An unexpected error response.",
+            "schema": {
+              "$ref": "#/definitions/rpcStatus"
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "userId",
+            "in": "path",
+            "required": true,
+            "type": "string",
+            "format": "uint64"
+          }
+        ],
+        "tags": [
+          "ICHSurvey"
+        ]
+      }
+    }
+  },
+  "definitions": {
+    "ICHSurveySetAnswerBody": {
+      "type": "object",
+      "properties": {
+        "answer": {
+          "type": "string"
+        },
+        "number": {
+          "type": "integer",
+          "format": "int64"
+        }
+      }
+    },
+    "apiClassQuestions": {
+      "type": "string",
+      "enum": [
+        "UNKNOWN_QUESTIONS_CLASS",
+        "LINUX_QUESTIONS",
+        "K8S_QUESTIONS",
+        "NETWORK_QUESTIONS",
+        "SECURITY_QUESTIONS",
+        "CONTAINER_QUESTIONS",
+        "DEVELOPER_UESTIONS"
+      ],
+      "default": "UNKNOWN_QUESTIONS_CLASS"
+    },
+    "apiQuestionResponse": {
+      "type": "object",
+      "properties": {
+        "userId": {
+          "type": "string",
+          "format": "uint64"
+        },
+        "question": {
+          "type": "string"
+        },
+        "number": {
+          "type": "integer",
+          "format": "int64"
+        },
+        "message": {
+          "type": "string"
+        }
+      }
+    },
+    "apiStatusResponse": {
+      "type": "object",
+      "properties": {
+        "message": {
+          "type": "string"
+        }
+      }
+    },
+    "apiSurvey": {
+      "type": "object",
+      "properties": {
+        "userId": {
+          "type": "string",
+          "format": "uint64"
+        },
+        "title": {
+          "type": "string"
+        },
+        "question": {
+          "type": "string"
+        },
+        "latency": {
+          "type": "string"
+        },
+        "answer": {
+          "type": "string"
+        },
+        "number": {
+          "type": "integer",
+          "format": "int64"
+        }
+      }
+    },
+    "apiSurveyResponse": {
+      "type": "object",
+      "properties": {
+        "startSurvey": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "mesage": {
+          "type": "string"
+        },
+        "qs": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "$ref": "#/definitions/apiSurvey"
+          }
+        }
+      }
+    },
+    "protobufAny": {
+      "type": "object",
+      "properties": {
+        "@type": {
+          "type": "string"
+        }
+      },
+      "additionalProperties": {}
+    },
+    "rpcStatus": {
+      "type": "object",
+      "properties": {
+        "code": {
+          "type": "integer",
+          "format": "int32"
+        },
+        "message": {
+          "type": "string"
+        },
+        "details": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "$ref": "#/definitions/protobufAny"
+          }
+        }
+      }
+    }
+  }
+}
