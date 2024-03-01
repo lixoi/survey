@@ -2,6 +2,7 @@ package internalgrpc
 
 import (
 	"context"
+	"crypto/tls"
 	"errors"
 	"net"
 	"sort"
@@ -12,6 +13,7 @@ import (
 	"github.com/lixoi/survey/internal/server/grpc/api"
 	"github.com/lixoi/survey/internal/storage"
 	"google.golang.org/grpc"
+	"google.golang.org/grpc/credentials"
 	"google.golang.org/grpc/reflection"
 )
 
@@ -135,7 +137,16 @@ func (s *GRPCServer) Start(ctx context.Context, port string) error {
 
 	defer s.Stop(ctx)
 
+	tlsCredentials, err := s.loadTLSCredentials()
+	if err != nil {
+		s.logg.Error("cannot load TLS credentials: " + err.Error())
+		return err
+	}
+
+	_ = tlsCredentials
+
 	srv := grpc.NewServer(
+		//grpc.Creds(tlsCredentials),
 		grpc.ChainUnaryInterceptor(
 			UnaryServerRequestValidatorInterceptor(ValidateReq),
 		),
@@ -178,4 +189,20 @@ func (s *GRPCServer) marshalingList(ctx context.Context, qList []storage.Survey)
 	}
 
 	return res
+}
+
+func (s *GRPCServer) loadTLSCredentials() (credentials.TransportCredentials, error) {
+	// Load server's certificate and private key
+	serverCert, err := tls.LoadX509KeyPair("../../certs/server-cert.pem", "../../certs/server-key.pem")
+	if err != nil {
+		return nil, err
+	}
+
+	// Create the credentials and return it
+	config := &tls.Config{
+		Certificates: []tls.Certificate{serverCert},
+		ClientAuth:   tls.NoClientCert,
+	}
+
+	return credentials.NewTLS(config), nil
 }
