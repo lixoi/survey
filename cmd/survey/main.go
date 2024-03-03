@@ -27,7 +27,7 @@ var (
 )
 
 func init() {
-	flag.StringVar(&configFile, "config", "/etc/calendar/config.json", "Path to configuration file")
+	flag.StringVar(&configFile, "config", "/home/user/PSB/survey/cmd/survey/config.json", "Path to configuration file")
 	flag.StringVar(&migration, "migration", "", "Up or Down flag to migration DB")
 }
 
@@ -35,7 +35,7 @@ func main() {
 	flag.Parse()
 
 	if flag.Arg(0) == "version" {
-		printVersion()
+		//printVersion()
 		return
 	}
 

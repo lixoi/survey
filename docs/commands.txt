@@ -54,3 +54,11 @@ env PORT=8081 go run cmd/swagger-server/main.go
 swagger serve --no-open -p 8080 swagger/api/api.swagger.json
 # генерация доки в формате markdown
 swagger generate markdown -f swagger/api/api.swagger.json --output swagger/api/swagger.mode
+
+
+
+# info from https://github.com/ankittk/go-grpc-gateway-openapi.git 
+
+git clone https://github.com/swagger-api/swagger-ui.git
+copy swagger-ui/dist to project survey (example dir swagger)
+

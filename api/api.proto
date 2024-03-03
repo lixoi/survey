@@ -6,6 +6,7 @@ option go_package = "./;api";
 
 import "google/protobuf/timestamp.proto";
 import "google/api/annotations.proto";
+//import "protoc-gen-openapiv2/options/annotations.proto";
 
 enum ClassQuestions {
     UNKNOWN_QUESTIONS_CLASS = 0;
@@ -61,6 +62,18 @@ message StatusResponse {
     string message = 1;
 }
 
+// These annotations are used when generating the OpenAPI file.
+/*
+option (grpc.gateway.protoc_gen_openapiv2.options.openapiv2_swagger) = {
+  info: {version: "1.0"};
+  external_docs: {
+    url: "https://github.com/johanbrandhorst/grpc-gateway-boilerplate";
+    description: "gRPC-gateway boilerplate repository";
+  }
+  schemes: HTTP;
+};
+*/
+
 service ICHSurvey {
     rpc AddCandidate(UserInfoRequest) returns (StatusResponse) {}
     rpc DeleteCandidate(UserIdRequest) returns (StatusResponse) {}
@@ -69,12 +82,26 @@ service ICHSurvey {
         option (google.api.http) = {
             get: "/v1/start_survey/{user_id}"
         };
+        /*
+        option (grpc.gateway.protoc_gen_openapiv2.options.openapiv2_operation) = {
+            summary: "Add a user"
+            description: "Add a user to the server."
+            tags: "survey"
+        };
+        */
     }
     rpc SetAnswer(AnswerRequest) returns (QuestionResponse) {
         option (google.api.http) = {
             post: "/v1/set_answer/{user_id}"
             body: "*"
         };
+        /*
+        option (grpc.gateway.protoc_gen_openapiv2.options.openapiv2_operation) = {
+            summary: "Add a user"
+            description: "Add a user to the server."
+            tags: "survey"
+        };
+        */
     }
 
     rpc SetFinishCandidate(UserIdRequest) returns (StatusResponse) {}

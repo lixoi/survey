@@ -7,6 +7,7 @@ LDFLAGS := -X main.release="develop" -X main.buildDate=$(shell date -u +%Y-%m-%d
 gen:
 	rm -f ./internal/server/grpc/api/api.pb.go
 	rm -f ./internal/server/grpc/api/api_grpc.pb.go
+	rm -f ./internal/server/grpc/api/api.pb.gw.go
 	protoc --go-grpc_out=./internal/server/grpc/api api/*.proto
 	protoc --go_out=./internal/server/grpc/api \
 		--grpc-gateway_out=./internal/server/grpc/api \
