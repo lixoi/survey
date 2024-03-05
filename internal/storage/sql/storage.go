@@ -77,7 +77,7 @@ func (s *Storage) AddUser(ctx context.Context, user storage.User) error {
 	var id uint64
 	if err := row.Scan(&id); err == nil && id > 0 {
 		s.logg.Error("User " + strconv.FormatUint(user.ID, 10) + " already exists in DB")
-		return errors.New("this user already exists in DB")
+		return fmt.Errorf("this user already exists in DB")
 	}
 	uknown := api.ClassQuestions_name[int32(api.ClassQuestions_UNKNOWN_QUESTIONS_CLASS)]
 	if user.BaseQ == uknown {

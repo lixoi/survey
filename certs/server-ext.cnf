@@ -1,2 +1,2 @@
-subjectAltName=DNS:*.psbank.local,DNS:*.psbank.ru,IP:0.0.0.0
+subjectAltName=DNS:localhost,DNS:*.psbank.local,DNS:*.psbank.ru,IP:0.0.0.0
 

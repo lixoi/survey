@@ -10,7 +10,6 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/lixoi/survey/internal/app"
 	config "github.com/lixoi/survey/internal/config"
 	"github.com/lixoi/survey/internal/logger"
 
@@ -35,7 +34,7 @@ func main() {
 	flag.Parse()
 
 	if flag.Arg(0) == "version" {
-		//printVersion()
+		PrintVersion()
 		return
 	}
 
@@ -51,8 +50,8 @@ func main() {
 	}
 
 	strg := sqlstorage.New(config, *logg)
-	survey := app.New(logg, strg)
 
+	// survey := app.New(logg, strg)
 	// databaseTests(strg)
 
 	ctx, cancel := signal.NotifyContext(context.Background(),
@@ -60,7 +59,7 @@ func main() {
 	defer cancel()
 
 	grpcServer := internalgrpc.New(strg, *logg)
-	httpServer := internalhttp.NewServer(logg, *survey)
+	httpServer := internalhttp.New(*logg)
 
 	go func() {
 		<-ctx.Done()
@@ -71,6 +70,10 @@ func main() {
 		if err := httpServer.Stop(ctx); err != nil {
 			logg.Error("failed to stop http server: " + err.Error())
 		}
+
+		if err := grpcServer.Stop(ctx); err != nil {
+			logg.Error("failed to stop grpc server: " + err.Error())
+		}
 	}()
 
 	if err = strg.Create(ctx); err != nil {
@@ -80,14 +83,14 @@ func main() {
 	logg.Info("calendar is running...")
 
 	go func() {
-		if err := grpcServer.Start(ctx, "50051"); err != nil {
-			logg.Error("failed to start http server: " + err.Error())
+		if err := grpcServer.Start(ctx, config); err != nil {
+			logg.Error("failed to start grpc server: " + err.Error())
 			cancel()
 			os.Exit(1) //nolint:gocritic
 		}
 	}()
 
-	if err := httpServer.Start(ctx); err != nil {
+	if err := httpServer.Start(ctx, config); err != nil {
 		logg.Error("failed to start http server: " + err.Error())
 		cancel()
 		os.Exit(1) //nolint:gocritic

@@ -15,13 +15,12 @@ COPY . ${CODE_DIR}
 
 # Собираем статический бинарник Go (без зависимостей на Си API),
 # иначе он не будет работать в alpine образе.
-ARG LDFLAGS
-RUN CGO_ENABLED=0 go build \
-        -ldflags "$LDFLAGS" \
-        -o ${BIN_FILE} ./cmd/survey/main.go
+RUN CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build \
+	-a -installsuffix cgo \
+        -o ${BIN_FILE} ./cmd/survey/main.go ./cmd/survey/version.go
 
 # На выходе тонкий образ
-FROM alpine:3.9
+FROM scratch
 
 LABEL ORGANIZATION="survey"
 LABEL SERVICE="survey"
@@ -33,4 +32,5 @@ COPY --from=build ${BIN_FILE} ${BIN_FILE}
 ENV CONFIG_FILE /opt/survey/config.json
 COPY ./cmd/survey/config.json ${CONFIG_FILE}
 
-CMD ${BIN_FILE} --config=${CONFIG_FILE}
+ENTRYPOINT ["/opt/survey/survey-app", "--config=/opt/survey/config.json"]
+#CMD ${BIN_FILE} --config=${CONFIG_FILE}

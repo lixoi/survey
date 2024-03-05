@@ -10,7 +10,7 @@ const (
 	ErrExistEvent = "ErrExistEvent"
 )
 
-type App struct { // TODO
+type App struct {
 	logger  Logger
 	storage Storage
 }
@@ -22,7 +22,7 @@ type Logger interface {
 	Error(msg string)
 }
 
-type Storage interface { // TODO
+type Storage interface {
 	//Connect(c context.Context) error
 	Create(c context.Context) error
 	Close(c context.Context) error

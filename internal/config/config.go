@@ -3,6 +3,7 @@ package config
 import (
 	"fmt"
 	"io/ioutil"
+	"os"
 
 	"github.com/valyala/fastjson"
 )
@@ -18,6 +19,7 @@ type Config struct {
 	Logger LoggerConf
 	PSQL   PSQLConfig
 	Server ServerConf
+	Certs  CertsConf
 }
 
 type LoggerConf struct {
@@ -35,11 +37,18 @@ type PSQLConfig struct {
 
 type ServerConf struct {
 	HostName string
-	Port     string
+	HttpPort string
+	GrpcPort string
+	Swagger  bool
+}
+
+type CertsConf struct {
+	SrvCert string
+	SrvKey  string
 }
 
 func NewConfig(fpath string) (c Config, err error) {
-	config, err := ioutil.ReadFile(fpath) // filename is the JSON file to read
+	config, err := os.ReadFile(fpath) // filename is the JSON file to read
 	if err != nil {
 		return
 	}
@@ -50,23 +59,23 @@ func NewConfig(fpath string) (c Config, err error) {
 	}
 
 	if !v.Exists("Logger") {
-		err = fmt.Errorf("Not init Logger in %s", fpath)
+		err = fmt.Errorf("not init Logger in %s", fpath)
 		return
 	}
 	vv := v.Get("Logger")
 	if !vv.Exists("Level") {
-		err = fmt.Errorf("Not init Level in %s", fpath)
+		err = fmt.Errorf("not init Level in %s", fpath)
 		return
 	}
 	c.Logger.Level = string(vv.Get("Level").GetStringBytes())
 
 	if !v.Exists("PSQL") {
-		err = fmt.Errorf("Not init PSQL in %s", fpath)
+		err = fmt.Errorf("not init PSQL in %s", fpath)
 		return
 	}
 	vv = v.Get("PSQL")
 	if !vv.Exists("DNS") || !vv.Exists("Port") || !vv.Exists("User") || !vv.Exists("Pass") {
-		err = fmt.Errorf("Not init parameters of PSQL in %s", fpath)
+		err = fmt.Errorf("not init parameters of PSQL in %s", fpath)
 		return
 	}
 	c.PSQL.DSN = string(vv.Get("DNS").GetStringBytes())
@@ -76,16 +85,30 @@ func NewConfig(fpath string) (c Config, err error) {
 	c.PSQL.DB = string(vv.Get("DB").GetStringBytes())
 
 	if !v.Exists("Server") {
-		err = fmt.Errorf("Not init Server in %s", fpath)
+		err = fmt.Errorf("not init Server in %s", fpath)
 		return
 	}
 	vv = v.Get("Server")
-	if !vv.Exists("HostName") || !vv.Exists("Port") {
-		err = fmt.Errorf("Not init parameters of Server in %s", fpath)
+	if !vv.Exists("HostName") || !vv.Exists("HttpPort") || !vv.Exists("GrpcPort") || !vv.Exists("Swagger") {
+		err = fmt.Errorf("not init parameters of Server in %s", fpath)
 		return
 	}
 	c.Server.HostName = string(vv.Get("HostName").GetStringBytes())
-	c.Server.Port = string(vv.Get("Port").GetStringBytes())
+	c.Server.Swagger = vv.Get("Swagger").GetBool()
+	c.Server.HttpPort = string(vv.Get("HttpPort").GetStringBytes())
+	c.Server.GrpcPort = string(vv.Get("GrpcPort").GetStringBytes())
+
+	if !v.Exists("Certs") {
+		err = fmt.Errorf("not init certificates in %s", fpath)
+		return
+	}
+	vv = v.Get("Certs")
+	if !vv.Exists("SrvCert") || !vv.Exists("SrvKey") {
+		err = fmt.Errorf("not init certificates for Server in %s", fpath)
+		return
+	}
+	c.Certs.SrvCert = string(vv.Get("SrvCert").GetStringBytes())
+	c.Certs.SrvKey = string(vv.Get("SrvKey").GetStringBytes())
 
 	return
 }

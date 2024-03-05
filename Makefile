@@ -13,6 +13,7 @@ gen:
 		--grpc-gateway_out=./internal/server/grpc/api \
 		--openapiv2_out ./swagger/ \
 		api/*.proto
+	cp ./swagger/api/api.swagger.json ./swagger/swagger.json
 	# --grpc-gateway_opt generate_unbound_methods=true - включение не аннотированных методов 
 
 build:

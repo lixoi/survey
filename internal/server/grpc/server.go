@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"github.com/lixoi/survey/internal/app"
+	"github.com/lixoi/survey/internal/config"
 	log "github.com/lixoi/survey/internal/logger"
 	"github.com/lixoi/survey/internal/server/grpc/api"
 	"github.com/lixoi/survey/internal/storage"
@@ -128,8 +129,8 @@ func (s *GRPCServer) GetSurveyForCandidate(ctx context.Context, req *api.UserIdR
 	return res, nil
 }
 
-func (s *GRPCServer) Start(ctx context.Context, port string) error {
-	l, err := net.Listen("tcp", ":"+port)
+func (s *GRPCServer) Start(ctx context.Context, config config.Config) error {
+	l, err := net.Listen("tcp", ":"+config.Server.GrpcPort)
 	if err != nil {
 		s.logg.Error(err.Error())
 		return err
@@ -137,16 +138,14 @@ func (s *GRPCServer) Start(ctx context.Context, port string) error {
 
 	defer s.Stop(ctx)
 
-	tlsCredentials, err := s.loadTLSCredentials()
+	tlsCredentials, err := s.loadTLSCredentials(config)
 	if err != nil {
 		s.logg.Error("cannot load TLS credentials: " + err.Error())
 		return err
 	}
 
-	_ = tlsCredentials
-
 	srv := grpc.NewServer(
-		//grpc.Creds(tlsCredentials),
+		grpc.Creds(tlsCredentials),
 		grpc.ChainUnaryInterceptor(
 			UnaryServerRequestValidatorInterceptor(ValidateReq),
 		),
@@ -191,13 +190,12 @@ func (s *GRPCServer) marshalingList(ctx context.Context, qList []storage.Survey)
 	return res
 }
 
-func (s *GRPCServer) loadTLSCredentials() (credentials.TransportCredentials, error) {
+func (s *GRPCServer) loadTLSCredentials(conf config.Config) (credentials.TransportCredentials, error) {
 	// Load server's certificate and private key
-	serverCert, err := tls.LoadX509KeyPair("../../certs/server-cert.pem", "../../certs/server-key.pem")
+	serverCert, err := tls.LoadX509KeyPair(conf.Certs.SrvCert, conf.Certs.SrvKey)
 	if err != nil {
 		return nil, err
 	}
-
 	// Create the credentials and return it
 	config := &tls.Config{
 		Certificates: []tls.Certificate{serverCert},

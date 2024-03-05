@@ -2,140 +2,94 @@ package internalhttp
 
 import (
 	"context"
-	"log"
+	"crypto/tls"
+	"crypto/x509"
+	"fmt"
 	"net/http"
-	"os"
 
-	"github.com/go-openapi/loads"
 	"github.com/grpc-ecosystem/grpc-gateway/v2/runtime"
-	flags "github.com/jessevdk/go-flags"
 	"github.com/lixoi/survey/internal/app"
+	"github.com/lixoi/survey/internal/config"
 	"github.com/lixoi/survey/internal/server/grpc/api"
-	"github.com/lixoi/survey/restapi"
-	"github.com/lixoi/survey/restapi/operations"
 	"google.golang.org/grpc"
-	"google.golang.org/grpc/credentials/insecure"
+	"google.golang.org/grpc/credentials"
 )
 
-type Server struct { // TODO
-	//srv  *http.Server
+type Server struct {
 	rmux *runtime.ServeMux
-	addr string
 	logg app.Logger
-	//storage app.Storage
 }
 
 /*
-type Logger interface { // TODO
+type Logger interface {
 }
-
-
-type Application interface { // TODO
+type Application interface {
 }
 */
 
-func NewServer(logger app.Logger, a app.App) *Server {
+func loadTLSCredentials(conf config.Config) (tls.Certificate, error) {
+	// Load server's certificate and private key
+	serverCert, err := tls.LoadX509KeyPair(conf.Certs.SrvCert, conf.Certs.SrvKey)
+	if err != nil {
+		return serverCert, err
+	}
+
+	return serverCert, nil
+}
+
+func New(logger app.Logger) *Server {
 	rmux := runtime.NewServeMux()
-
-	/*
-	   mux := http.NewServeMux()
-	   mux.Handle("/", rmux)
-	   mux.Handle("/set_answer", rmux)
-
-	   h := NewHandler(a)
-	   mux.HandleFunc("/hello", loggingMiddleware(h.GetHello, logger))
-	   mux.HandleFunc("/user/add/<id>", loggingMiddleware(h.AddUserId))
-	   mux.HandleFunc("/user/del/<id>", loggingMiddleware(h.DelUserId))
-	   mux.HandleFunc("/question/<id>/<index>", loggingMiddleware(h.GetStats))
-	   // websocket handler
-	   //mux.HandleFunc("/result/<id>", loggingMiddleware(h.StatStream))
-
-	   	return &Server{srv: &http.Server{
-	   		Addr:    ":8080",
-	   		Handler: rmux,
-	   	},
-
-	   		logg: logger,
-	   	}
-	*/
 	return &Server{
 		rmux: rmux,
-		addr: ":8080",
 		logg: logger,
 	}
 }
 
-func (s *Server) Start(ctx context.Context) error {
-	// TODO
-	opts := []grpc.DialOption{grpc.WithTransportCredentials(insecure.NewCredentials())}
-	err := api.RegisterICHSurveyHandlerFromEndpoint(ctx, s.rmux, ":50051", opts)
+func (s *Server) Start(ctx context.Context, conf config.Config) error {
+	cert, err := loadTLSCredentials(conf)
+	if err != nil {
+		s.logg.Error("not load certs: " + err.Error())
+		return fmt.Errorf("not load certs, check config file")
+	}
+	cert.Leaf, err = x509.ParseCertificate(cert.Certificate[0])
+	if err != nil {
+		s.logg.Error("not parse certificates: " + err.Error())
+		return fmt.Errorf("not parse certificates")
+	}
+	certPool := x509.NewCertPool()
+	certPool.AddCert(cert.Leaf)
+	cp := credentials.NewClientTLSFromCert(certPool, "")
 
-	fs := http.FileServer(http.Dir("./../../swaggerui"))
-	http.Handle("/swaggerui/", http.StripPrefix("/swaggerui/", fs))
+	opts := []grpc.DialOption{grpc.WithTransportCredentials(cp)}
+	err = api.RegisterICHSurveyHandlerFromEndpoint(ctx, s.rmux, ":"+conf.Server.GrpcPort, opts)
+
 	mux := http.NewServeMux()
-	mux.Handle("/", s.rmux)                                        // Handle gRPC-gateway requests
-	mux.Handle("/swaggerui/", http.StripPrefix("/swaggerui/", fs)) // Handle Swagger UI requests
-	if err := http.ListenAndServe(s.addr, mux); err != nil {
-		//if err := s.srv.ListenAndServe(); err != nil {
+	mux.Handle("/", s.rmux) // Handle gRPC-gateway requests
+
+	if conf.Server.Swagger {
+		fs := http.FileServer(http.Dir("./../../swagger"))
+		http.Handle("/swagger/", http.StripPrefix("/swagger/", fs))
+		mux.Handle("/swagger/", http.StripPrefix("/swagger/", fs)) // Handle Swagger UI requests
+	}
+
+	gwServer := http.Server{
+		Addr: conf.Server.HostName + ":" + conf.Server.HttpPort,
+		TLSConfig: &tls.Config{
+			Certificates: []tls.Certificate{cert},
+		},
+		Handler: mux,
+	}
+
+	if err := gwServer.ListenAndServeTLS("", ""); err != nil {
 		s.logg.Error("Not start server: " + err.Error())
 		return err
 	}
+
 	s.Stop(ctx)
 	return err
 }
 
 func (s *Server) Stop(ctx context.Context) error {
-	// TODO
 	<-ctx.Done()
 	return nil
 }
-
-func (s *Server) StartSwagger(ctx context.Context) error {
-
-	swaggerSpec, err := loads.Embedded(restapi.SwaggerJSON, restapi.FlatSwaggerJSON)
-	if err != nil {
-		log.Fatalln(err)
-	}
-
-	sapi := operations.NewSwaggerAPI(swaggerSpec)
-	server := restapi.NewServer(sapi)
-	defer server.Shutdown()
-
-	parser := flags.NewParser(server, flags.Default)
-	parser.ShortDescription = "api/api.proto"
-	parser.LongDescription = swaggerSpec.Spec().Info.Description
-	server.ConfigureFlags()
-	for _, optsGroup := range sapi.CommandLineOptionsGroups {
-		_, err := parser.AddGroup(optsGroup.ShortDescription, optsGroup.LongDescription, optsGroup.Options)
-		if err != nil {
-			log.Fatalln(err)
-		}
-	}
-
-	if _, err := parser.Parse(); err != nil {
-		code := 1
-		if fe, ok := err.(*flags.Error); ok {
-			if fe.Type == flags.ErrHelp {
-				code = 0
-			}
-		}
-		os.Exit(code)
-	}
-
-	opts := []grpc.DialOption{grpc.WithTransportCredentials(insecure.NewCredentials())}
-	err = api.RegisterICHSurveyHandlerFromEndpoint(ctx, s.rmux, ":50051", opts)
-	if err != nil {
-		return nil
-	}
-	server.SetHandler(s.rmux)
-
-	server.ConfigureAPI()
-
-	if err := server.Serve(); err != nil {
-		log.Fatalln(err)
-	}
-
-	return nil
-}
-
-// TODO
