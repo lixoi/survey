@@ -16,5 +16,5 @@
 
 Сонфигурация сервиса задается в файле config.json (в директории cmd/survey/ проекта)
 
-Документация по [REST API](./docs/api/swagger.mode).
+Документация по [REST API](./docs/api/swagger.md).
 
