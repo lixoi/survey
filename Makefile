@@ -1,10 +1,11 @@
-BIN := "./bin/survey"
+BIN_FILE := "./bin/survey"
 DOCKER_IMG="survey:develop"
 
 GIT_HASH := $(shell git log --format="%h" -n 1)
 LDFLAGS := -X main.release="develop" -X main.buildDate=$(shell date -u +%Y-%m-%dT%H:%M:%S) -X main.gitHash=$(GIT_HASH)
 
 gen:
+
 	rm -f ./internal/server/grpc/api/api.pb.go
 	rm -f ./internal/server/grpc/api/api_grpc.pb.go
 	rm -f ./internal/server/grpc/api/api.pb.gw.go
@@ -17,16 +18,19 @@ gen:
 	# --grpc-gateway_opt generate_unbound_methods=true - включение не аннотированных методов 
 
 build:
-	go build -v -o $(BIN) -ldflags "$(LDFLAGS)" ./cmd/survey
+	CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build \
+	-a -installsuffix cgo \
+	-ldflags "$(LDFLAGS)" \
+    -o ${BIN_FILE} ./cmd/survey/main.go ./cmd/survey/version.go
 
 run: build
-	$(BIN) -config ./configs/config.toml
+	$(BIN) --config=./cmd/survey/config.json
 
 build-img:
 	docker build \
 		--build-arg=LDFLAGS="$(LDFLAGS)" \
 		-t $(DOCKER_IMG) \
-		-f build/Dockerfile .
+		-f ./build/Dockerfile .
 
 run-img: build-img
 	docker run $(DOCKER_IMG)

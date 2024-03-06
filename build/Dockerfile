@@ -1,36 +1,39 @@
-# Собираем в гошке
 FROM golang:1.20 as build
 
-ENV BIN_FILE /opt/survey/survey-app
 ENV CODE_DIR /go/src/
 
 WORKDIR ${CODE_DIR}
 
-# Кэшируем слои с модулями
-COPY go.mod .
-COPY go.sum .
-RUN go mod download
+RUN apt update && apt upgrade -y && apt install -y protobuf-compiler
 
 COPY . ${CODE_DIR}
 
-# Собираем статический бинарник Go (без зависимостей на Си API),
-# иначе он не будет работать в alpine образе.
-ARG LDFLAGS
-RUN CGO_ENABLED=0 go build \
-        -ldflags "$LDFLAGS" \
-        -o ${BIN_FILE} ./cmd/survey/main.go
+RUN go mod tidy
+RUN go install \
+    github.com/grpc-ecosystem/grpc-gateway/v2/protoc-gen-grpc-gateway \
+    github.com/grpc-ecosystem/grpc-gateway/v2/protoc-gen-openapiv2 \
+    google.golang.org/protobuf/cmd/protoc-gen-go \
+    google.golang.org/grpc/cmd/protoc-gen-go-grpc
 
-# На выходе тонкий образ
-FROM alpine:3.9
+RUN make gen
+RUN make build
+
+# --- build distroless docker image ---
+FROM scratch
 
 LABEL ORGANIZATION="survey"
 LABEL SERVICE="survey"
 LABEL MAINTAINERS="lixoi@list.ru"
 
-ENV BIN_FILE "/opt/survey/survey-app"
-COPY --from=build ${BIN_FILE} ${BIN_FILE}
+ENV CODE_DIR "/go/src/"
+ENV BIN_FILE "bin/survey"
+ENV BIN "/opt/survey/survey-app"
 
+COPY --from=build ${CODE_DIR}${BIN_FILE} ${BIN}
 ENV CONFIG_FILE /opt/survey/config.json
 COPY ./cmd/survey/config.json ${CONFIG_FILE}
 
-CMD ${BIN_FILE} --config=${CONFIG_FILE}
+COPY --from=build ${CODE_DIR}certs /certs
+COPY --from=build ${CODE_DIR}migrations /migrations
+
+ENTRYPOINT ["/opt/survey/survey-app", "--config=/opt/survey/config.json"]

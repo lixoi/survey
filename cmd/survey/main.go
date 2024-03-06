@@ -45,7 +45,14 @@ func main() {
 	}
 	logg := logger.New(config.Logger.Level)
 
-	if migration != "" && migrations.UpDown(config.PSQL, migration, *logg) != nil {
+	// запуск процесса миграции
+	if migration != "" {
+		err = migrations.UpDown(config.PSQL, migration, *logg)
+		if err != nil {
+			logg.Error("Migration of DB failed: " + err.Error())
+		} else {
+			logg.Info("Migration of DB successful")
+		}
 		return
 	}
 
