@@ -5,7 +5,6 @@ GIT_HASH := $(shell git log --format="%h" -n 1)
 LDFLAGS := -X main.release="develop" -X main.buildDate=$(shell date -u +%Y-%m-%dT%H:%M:%S) -X main.gitHash=$(GIT_HASH)
 
 gen:
-
 	rm -f ./internal/server/grpc/api/api.pb.go
 	rm -f ./internal/server/grpc/api/api_grpc.pb.go
 	rm -f ./internal/server/grpc/api/api.pb.gw.go
