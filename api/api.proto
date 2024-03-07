@@ -15,7 +15,7 @@ enum ClassQuestions {
     NETWORK_QUESTIONS = 3;
     SECURITY_QUESTIONS = 4;
     CONTAINER_QUESTIONS = 5;
-    DEVELOPER_UESTIONS = 6;
+    DEVELOPER_QUESTIONS = 6;
 }
 
 message UserInfoRequest {

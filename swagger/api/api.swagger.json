@@ -109,7 +109,7 @@
         "NETWORK_QUESTIONS",
         "SECURITY_QUESTIONS",
         "CONTAINER_QUESTIONS",
-        "DEVELOPER_UESTIONS"
+        "DEVELOPER_QUESTIONS"
       ],
       "default": "UNKNOWN_QUESTIONS_CLASS"
     },
